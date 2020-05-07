@@ -1,0 +1,18 @@
+ATC code,Type for 4CE analyse,Class,Name,RxNorm code,concept_id
+B01AC09,Severe Illness Medication,Platelet aggregation inhibitors excl. heparin,Epoprostenol,8814,21600994
+C01CA03,Severe Illness Medication,Adrenergic and dopaminergic agents,Norepinephrine,7512,21600283
+C01CA04,Severe Illness Medication,Adrenergic and dopaminergic agents,Dopamine,3628,21600284
+C01CA06,Severe Illness Medication,Adrenergic and dopaminergic agents,phenylephrine,8163,21600286
+C01CA07,Severe Illness Medication,Adrenergic and dopaminergic agents,DOBUTamine,3616,21600287
+C01CA24,Severe Illness Medication,Adrenergic and dopaminergic agents,EPINEPHrine,3992,21600303
+C01CE02,Severe Illness Medication,Phosphodiesterase inhibitors,Milrinone,52769,21600308
+H01BA01,Severe Illness Medication,Vasopressin and analogues,Vasopressin,11149,21602699
+M03AC03,Severe Illness Medication,MUSCLE RELAXANTS,vecuronium,71535,21604080
+M03AC09,Severe Illness Medication,MUSCLE RELAXANTS,rocuronium bromide,68139,21604086
+M03AC11,Severe Illness Medication,MUSCLE RELAXANTS,Cisatracurium,319864,21604088
+N01AX03,Severe Illness Medication,"ANESTHETICS, GENERAL",Ketamine,6130,21604210
+N01AX10,Severe Illness Medication,"ANESTHETICS, GENERAL",Propofol,8782,21604214
+N05CD08,Severe Illness Medication,Benzodiazepine derivatives,Midazolam,6960,21604643
+N05CM18,Severe Illness Medication,Other hypnotics and sedatives,Dexmetotomidine,48937,21604677
+R07AX01,Severe Illness Medication,Other respiratory system products,Nitric Oxide,7442,21603549
+C01CX09,Severe Illness Medication,Other cardiac stimulants,angiotensin II,1999003,963889
