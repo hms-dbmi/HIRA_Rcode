@@ -57,15 +57,23 @@ createDataSet <- function( input, medication, hospitalize, severe ){
   dataAnalysisMedication =  data.frame( PATIENT_ID  = medication$MID, 
                                         MEDICATION  = medication$GNL_CD)
   
-
+  #drug mapping
+  gnl_to_4ce = read.delim("4CE_in_GNL_drug_overlap.tsv")
+  
+  #merge both to do selection an analysis based on the ACT medication code
+  dataAnalysisMedicationComplete <- merge( dataAnalysisMedication, gnl_to_4ce, 
+                                           by.x = "MEDICATION", 
+                                           by.y = "GNL_CD", 
+                                           all.x = TRUE )
+  
   #merge everything in a unique data.frame
-  dataAnalysisSelection <- merge( dataAnalysisSelection, dataAnalysisMedication, by="PATIENT_ID", 
+  dataAnalysisSelection <- merge( dataAnalysisSelection, dataAnalysisMedicationComplete, by="PATIENT_ID", 
                                   all = TRUE)
   
   #Select severe patients only
   if( severe == TRUE ){
-    severePatientsIcd <- dataAnalysisSelection[ dataAnalysisSelection$DIAGNOSTIC_CODE %in% c("J80", "J95.851"), "PATIENT_ID"]
-    #severePatientsMed <- 
+    severePatientsIcd <- dataAnalysisSelection[ dataAnalysisSelection$DIAGNOSTIC_3D %in% c("J80", "J95"), "PATIENT_ID"]
+    severePatientsMed <- dataAnalysisSelection[ dataAnalysisSelection$Type_for_4CE_Analysis == "Severe Illness Medication", "PATIENT_ID" ]
     severePatients <- unique( c( severePatientsIcd, severePatientsMed ))
     dataAnalysisSelection <- dataAnalysisSelection[ dataAnalysisSelection$PATIENT_ID %in% severePatients, ]
   }
@@ -162,10 +170,25 @@ diagnosesFile <- function( input, threeDigits, by.sex, by.age ){
   return( selectionCount )
 }
 
-medicationFile <- function( input, by.sex, by.age ){
+medicationFile <- function( input, by.sex, by.age, aggregationLevel ){
   
-  input <- unique( input[ , c("PATIENT_ID", "MEDICATION", "SEX", "AGE_RANGE")] )
-  input <- input[!is.na( input$MEDICATION ), ]
+  if( aggregationLevel == "GNL"){
+    input <- unique( input[ , c("PATIENT_ID", "MEDICATION", "SEX", "AGE_RANGE")] )
+    input <- input[!is.na( input$MEDICATION ), ]
+  }else if( aggregationLevel == "ATC"){
+    input <- unique( input[ , c("PATIENT_ID", "ATC_Code", "SEX", "AGE_RANGE")] )
+    colnames(input)[2] <- "MEDICATION"
+    input <- input[!is.na( input$MEDICATION ), ]
+  }else if( aggregationLevel == "MEDICATION_NAME"){
+    input <- unique( input[ , c("PATIENT_ID", "Med_Name_x", "SEX", "AGE_RANGE")] )
+    colnames(input)[2] <- "MEDICATION"
+    input <- input[!is.na( input$MEDICATION ), ]
+  }else if( aggregationLevel == "MEDICATION_CLASS"){
+    input <- unique( input[ , c("PATIENT_ID", "Class_Name", "SEX", "AGE_RANGE")] )
+    colnames(input)[2] <- "MEDICATION"
+    input <- input[!is.na( input$MEDICATION ), ]
+  }
+
   
   if( by.sex == FALSE & by.age == FALSE){
     medicationCount <- rbind(plyr::ddply(input,
@@ -286,7 +309,12 @@ diagnosesFile( input = beforeAdmission, threeDigits = TRUE, by.sex=TRUE, by.age 
 ########################
 ## MEDICATION COUNTS ##
 #######################
-medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE )
+#levels for aggregation: GNL, ATC, MEDICATION_NAME, MEDICATION_CLASS
+medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "GNL" )
+medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "ATC" )
+medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_NAME" )
+medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_CLASS" )
+
 medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = FALSE )
 medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE  )
 medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = TRUE  )
