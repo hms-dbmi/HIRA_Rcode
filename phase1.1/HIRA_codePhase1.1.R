@@ -87,7 +87,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
                                         MEDICATION_DATE = medication$PRSCP_GRANT_NO)
 
   #drug mapping,
-  gnl_to_4ce = read.delim("4CE_in_GNL_drug_overlap.tsv")
+  gnl_to_4ce = read.delim("/Users/alba/Desktop/COVID-19/HIRA_Rcode/code/python/4CE_in_GNL_drug_overlap.tsv")
 
   #merge both to do selection an analysis based on the ACT medication code
   dataAnalysisMedicationComplete <- merge( dataAnalysisMedication, gnl_to_4ce[c("GNL_CD",
@@ -392,14 +392,17 @@ co19_t530_trans_dn$MID <- sample(co19_t200_trans_dn$MID,
                                  replace=T)
 co19_t200_twjhe_dn[co19_t200_twjhe_dn$RECU_FR_DD %in% c(20190101, 20150404),'RECU_FR_DD'] <- "20200101"
 
-#########################
-## CREATE THE DATASETS ##
-##################@######
+#ONLY FOR SAMPLE DATA: hospitalization patients
+co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J80", "FOM_TP_CD"] <- "021"
+
+#################################################
+## CREATE THE DATASETS: HOSPITALIZED PATIENTS ##
+##################@#############################
 DataSet <- createDataSet( since              = co19_t200_trans_dn,
                           before             = co19_t200_twjhe_dn,
                           medication_since   = co19_t530_trans_dn,
                           medication_before  = co19_t530_twjhe_dn,
-                          hospitalize = FALSE)
+                          hospitalize = TRUE)
 sinceAdmission <- DataSet[DataSet$BEFORE_SINCE == "since",]
 beforeAdmission <- DataSet[DataSet$BEFORE_SINCE == "before",]
 
@@ -549,3 +552,165 @@ save( medicationBeforeAdmission_bySexAndAge_GNL, "medicationBeforeAdmission_bySe
 save( medicationBeforeAdmission_bySexAndAge_ATC, "medicationBeforeAdmission_bySexAndAge_ATC.RData")
 save( medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME, "medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME.RData")
 save( medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS, "medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS.RData")
+
+rm(DataSet)
+rm(sinceAdmission)
+rm(beforeAdmission)
+
+########################################
+## CREATE THE DATASETS: ALL PATIENTS ##
+##################@####################
+DataSet <- createDataSet( since              = co19_t200_trans_dn,
+                          before             = co19_t200_twjhe_dn,
+                          medication_since   = co19_t530_trans_dn,
+                          medication_before  = co19_t530_twjhe_dn,
+                          hospitalize = FALSE)
+sinceAdmission <- DataSet[DataSet$BEFORE_SINCE == "since",]
+beforeAdmission <- DataSet[DataSet$BEFORE_SINCE == "before",]
+
+###################
+## DAILY COUNTS ##
+##################
+list_daily_counts <- DailyCounts(sinceAdmission)
+df_calendar_count <- list_daily_counts[["df_calendar_count"]]
+df_calendar_count_cumulative <- list_daily_counts[["df_calendar_count_cumulative"]]
+df_clinical_course <- ClinicalCourse(sinceAdmission)
+
+save( list_daily_counts, file="list_daily_counts_All.RData")
+save( df_calendar_count, file="df_calendar_count_All.RData")
+save( df_calendar_count_cumulative, file="df_calendar_count_cumulative_All.RData")
+save( df_clinical_course, file="df_clinical_course_All.RData")
+
+
+#########################
+## DEMOGRAPHIC COUNTS ##
+########################
+demogSinceAdmissionBySex <- demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = FALSE )
+demogSinceAdmissionByAge <- demographicsFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE )
+demogSinceAdmissionBySexAndAge <- demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = TRUE )
+save( demogSinceAdmissionBySex, file="demogSinceAdmissionBySex_All.RData")
+save( demogSinceAdmissionByAge, file="demogSinceAdmissionByAge_All.RData")
+save( demogSinceAdmissionBySexAndAge, file="demogSinceAdmissionBySexAndAge_All.RData")
+
+demogBeforeAdmissionBySex <- demographicsFile( input = beforeAdmission, by.sex = TRUE, by.age = FALSE )
+demogBeforeAdmissionByAge <- demographicsFile( input = beforeAdmission, by.sex = FALSE, by.age = TRUE )
+demogBeforeAdmissionBySexAndAge <- demographicsFile( input = beforeAdmission, by.sex = TRUE, by.age = TRUE )
+save( demogBeforeAdmissionBySex, file="demogBeforeAdmissionBySex_All.RData")
+save( demogBeforeAdmissionByAge, file="demogBeforeAdmissionByAge_All.RData")
+save( demogBeforeAdmissionBySexAndAge, file="demogBeforeAdmissionBySexAndAge_All.RData")
+
+
+######################
+## DIAGNOSES COUNTS ##
+#########@############
+diagnSinceAdmissionThreeD <- diagnosesFile( input = sinceAdmission, threeDigits = TRUE, by.sex=FALSE, by.age = FALSE )
+diagnSinceAdmissionThreeD_bySex <- diagnosesFile( input = sinceAdmission, threeDigits = TRUE, by.sex=TRUE, by.age = FALSE )
+diagnSinceAdmissionThreeD_byAge <- diagnosesFile( input = sinceAdmission, threeDigits = TRUE, by.sex=FALSE, by.age = TRUE )
+diagnSinceAdmissionThreeD_bySexAndAge <- diagnosesFile( input = sinceAdmission, threeDigits = TRUE, by.sex=TRUE, by.age = TRUE )
+save( diagnSinceAdmissionThreeD, "diagnSinceAdmissionThreeD_All.RData")
+save( diagnSinceAdmissionThreeD_bySex, "diagnSinceAdmissionThreeD_bySex_All.RData")
+save( diagnSinceAdmissionThreeD_byAge, "diagnSinceAdmissionThreeD_byAge_All.RData")
+save( diagnSinceAdmissionThreeD_bySexAndAge, "diagnSinceAdmissionThreeD_bySexAndAge_All.RData")
+
+diagnBeforeAdmissionThreeD <- diagnosesFile( input = beforeAdmission, threeDigits = TRUE, by.sex=FALSE, by.age = FALSE )
+diagnBeforeAdmissionThreeD_bySex <- diagnosesFile( input = beforeAdmission, threeDigits = TRUE, by.sex=TRUE, by.age = FALSE )
+diagnBeforeAdmissionThreeD_byAge <- diagnosesFile( input = beforeAdmission, threeDigits = TRUE, by.sex=FALSE, by.age = TRUE )
+diagnBeforeAdmissionThreeD_bySexAndAge <- diagnosesFile( input = beforeAdmission, threeDigits = TRUE, by.sex=TRUE, by.age = TRUE )
+save( diagnBeforeAdmissionThreeD, "diagnBeforeAdmissionThreeD_All.RData")
+save( diagnBeforeAdmissionThreeD_bySex, "diagnBeforeAdmissionThreeD_bySex_All.RData")
+save( diagnBeforeAdmissionThreeD_byAge, "diagnBeforeAdmissionThreeD_byAge_All.RData")
+save( diagnBeforeAdmissionThreeD_bySexAndAge, "diagnBeforeAdmissionThreeD_bySexAndAge_All.RData")
+
+diagnSinceAdmissionAllD <- diagnosesFile( input = sinceAdmission, threeDigits = FALSE, by.sex=FALSE, by.age = FALSE )
+diagnSinceAdmissionAllD_bySex <- diagnosesFile( input = sinceAdmission, threeDigits = FALSE, by.sex=TRUE, by.age = FALSE )
+diagnSinceAdmissionAllD_byAge <- diagnosesFile( input = sinceAdmission, threeDigits = FALSE, by.sex=FALSE, by.age = TRUE )
+diagnSinceAdmissionAllD_bySexAndAge  <- diagnosesFile( input = sinceAdmission, threeDigits = FALSE, by.sex=TRUE, by.age = TRUE )
+save( diagnSinceAdmissionAllD, "diagnSinceAdmissionAllD_All.RData")
+save( diagnSinceAdmissionAllD_bySex, "diagnSinceAdmissionAllD_bySex_All.RData")
+save( diagnSinceAdmissionAllD_byAge, "diagnSinceAdmissionAllD_byAge_All.RData")
+save( diagnSinceAdmissionAllD_bySexAndAge, "diagnSinceAdmissionAllD_bySexAndAge_All.RData")
+
+diagnBeforeAdmissionAll <- diagnosesFile( input = beforeAdmission, threeDigits = FALSE, by.sex=FALSE, by.age = FALSE )
+diagnBeforeAdmissionAllDD_bySex <- diagnosesFile( input = beforeAdmission, threeDigits = FALSE, by.sex=TRUE, by.age = FALSE )
+diagnBeforeAdmissionAllD_byAge <- diagnosesFile( input = beforeAdmission, threeDigits = FALSE, by.sex=FALSE, by.age = TRUE )
+diagnBeforeAdmissionAllD_bySexAndAge <- diagnosesFile( input = beforeAdmission, threeDigits = FALSE, by.sex=TRUE, by.age = TRUE )
+save( diagnBeforeAdmissionAll, "diagnBeforeAdmissionAll_All.RData")
+save( diagnBeforeAdmissionAllDD_bySex, "diagnBeforeAdmissionAllDD_bySex_All.RData")
+save( diagnBeforeAdmissionAllD_byAge, "diagnBeforeAdmissionAllD_byAge_All.RData")
+save( diagnBeforeAdmissionAllD_bySexAndAge, "diagnBeforeAdmissionAllD_bySexAndAge_All.RData")
+
+########################
+## MEDICATION COUNTS ##
+#######################
+#levels for aggregation: GNL, ATC, MEDICATION_NAME, MEDICATION_CLASS
+medicationSinceAdmission_GNL <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "GNL" )
+medicationSinceAdmission_ATC <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "ATC" )
+medicationSinceAdmission_MEDICATION_NAME <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_NAME" )
+medicationSinceAdmission_MEDICATION_CLASS <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_CLASS" )
+save( medicationSinceAdmission_GNL, "medicationSinceAdmission_GNL_All.RData")
+save( medicationSinceAdmission_ATC, "medicationSinceAdmission_ATC_All.RData")
+save( medicationSinceAdmission_MEDICATION_NAME, "medicationSinceAdmission_MEDICATION_NAME_All.RData")
+save( medicationSinceAdmission_MEDICATION_CLASS, "medicationSinceAdmission_MEDICATION_CLASS_All.RData")
+
+medicationSinceAdmission_bySex_GNL <-medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "GNL" )
+medicationSinceAdmission_bySex_ATC <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "ATC"  )
+medicationSinceAdmission_bySex_MEDICATION_NAME <-  medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "MEDICATION_NAME" )
+medicationSinceAdmission_bySex_MEDICATION_CLASS <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "MEDICATION_CLASS" )
+save( medicationSinceAdmission_bySex_GNL, "medicationSinceAdmission_bySex_GNL_All.RData")
+save( medicationSinceAdmission_bySex_ATC, "medicationSinceAdmission_bySex_ATC_All.RData")
+save( medicationSinceAdmission_bySex_MEDICATION_NAME, "medicationSinceAdmission_bySex_MEDICATION_NAME_All.RData")
+save( medicationSinceAdmission_bySex_MEDICATION_CLASS, "medicationSinceAdmission_bySex_MEDICATION_CLASS_All.RData")
+
+medicationSinceAdmission_byAge_GNL <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "GNL"   )
+medicationSinceAdmission_byAge_ATC <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "ATC" )
+medicationSinceAdmission_byAge_MEDICATION_NAME <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "MEDICATION_NAME" )
+medicationSinceAdmission_byAge_MEDICATION_CLASS <- medicationFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "MEDICATION_CLASS")
+save( medicationSinceAdmission_byAge_GNL, "medicationSinceAdmission_byAge_GNL_All.RData")
+save( medicationSinceAdmission_byAge_ATC, "medicationSinceAdmission_byAge_ATC_All.RData")
+save( medicationSinceAdmission_byAge_MEDICATION_NAME, "medicationSinceAdmission_byAge_MEDICATION_NAME_All.RData")
+save( medicationSinceAdmission_byAge_MEDICATION_CLASS, "medicationSinceAdmission_byAge_MEDICATION_CLASS_All.RData")
+
+medicationSinceAdmission_bySexAndAge_GNL <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "GNL"   )
+medicationSinceAdmission_bySexAndAge_ATC <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "ATC" )
+medicationSinceAdmission_bySexAndAge_MEDICATION_NAME <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "MEDICATION_NAME")
+medicationSinceAdmission_bySexAndAge_MEDICATION_CLASS <- medicationFile( input = sinceAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "MEDICATION_CLASS"    )
+save( medicationSinceAdmission_bySexAndAge_GNL, "medicationSinceAdmission_bySexAndAge_GNL_All.RData")
+save( medicationSinceAdmission_bySexAndAge_ATC, "medicationSinceAdmission_bySexAndAge_ATC_All.RData")
+save( medicationSinceAdmission_bySexAndAge_MEDICATION_NAME, "medicationSinceAdmission_bySexAndAge_MEDICATION_NAME_All.RData")
+save( medicationSinceAdmission_bySexAndAge_MEDICATION_CLASS, "medicationSinceAdmission_bySexAndAge_MEDICATION_CLASS_All.RData")
+
+medicationBeforeAdmission_GNL <- medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "GNL" )
+medicationBeforeAdmission_ATC <-medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "ATC" )
+medicationBeforeAdmission_MEDICATION_NAME <-medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_NAME" )
+medicationBeforeAdmission_MEDICATION_CLASS <-medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = FALSE, aggregationLevel = "MEDICATION_CLASS" )
+save( medicationBeforeAdmission_GNL, "medicationBeforeAdmission_GNL_All.RData")
+save( medicationBeforeAdmission_ATC, "medicationBeforeAdmission_ATC_All.RData")
+save( medicationBeforeAdmission_MEDICATION_NAME, "medicationBeforeAdmission_MEDICATION_NAME_All.RData")
+save( medicationBeforeAdmission_MEDICATION_CLASS, "medicationBeforeAdmission_MEDICATION_CLASS_All.RData")
+
+medicationBeforeAdmission_bySex_GNL <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "GNL" )
+medicationBeforeAdmission_bySex_ATC <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "ATC" )
+medicationBeforeAdmission_bySex_MEDICATION_NAME <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "MEDICATION_NAME" )
+medicationBeforeAdmission_bySex_MEDICATION_CLASS <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = FALSE, aggregationLevel = "MEDICATION_CLASS"  )
+save( medicationBeforeAdmission_bySex_GNL, "medicationBeforeAdmission_bySex_GNL_All.RData")
+save( medicationBeforeAdmission_bySex_ATC, "medicationBeforeAdmission_bySex_ATC_All.RData")
+save( medicationBeforeAdmission_bySex_MEDICATION_NAME, "medicationBeforeAdmission_bySex_MEDICATION_NAME_All.RData")
+save( medicationBeforeAdmission_bySex_MEDICATION_CLASS, "medicationBeforeAdmission_bySex_MEDICATION_CLASS_All.RData")
+
+medicationBeforeAdmission_byAge_GNL <- medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "GNL"  )
+medicationBeforeAdmission_byAge_ATC <- medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "ATC" )
+medicationBeforeAdmission_byAge_MEDICATION_NAME <- medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "MEDICATION_NAME"  )
+medicationBeforeAdmission_byAge_MEDICATION_CLASS <- medicationFile( input = beforeAdmission, by.sex = FALSE, by.age = TRUE, aggregationLevel = "MEDICATION_CLASS"  )
+save( medicationBeforeAdmission_byAge_GNL, "medicationBeforeAdmission_byAge_GNL_All.RData")
+save( medicationBeforeAdmission_byAge_ATC, "medicationBeforeAdmission_byAge_ATC_All.RData")
+save( medicationBeforeAdmission_byAge_MEDICATION_NAME, "medicationBeforeAdmission_byAge_MEDICATION_NAME_All.RData")
+save( medicationBeforeAdmission_byAge_MEDICATION_CLASS, "medicationBeforeAdmission_byAge_MEDICATION_CLASS_All.RData")
+
+medicationBeforeAdmission_bySexAndAge_GNL <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "GNL"  )
+medicationBeforeAdmission_bySexAndAge_ATC <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "ATC" )
+medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "MEDICATION_NAME"  )
+medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS <- medicationFile( input = beforeAdmission, by.sex = TRUE,  by.age = TRUE, aggregationLevel = "MEDICATION_CLASS" )
+save( medicationBeforeAdmission_bySexAndAge_GNL, "medicationBeforeAdmission_bySexAndAge_GNL_All.RData")
+save( medicationBeforeAdmission_bySexAndAge_ATC, "medicationBeforeAdmission_bySexAndAge_ATC_All.RData")
+save( medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME, "medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME_All.RData")
+save( medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS, "medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS_All.RData")
