@@ -25,7 +25,9 @@ createDataSet <- function( since = co19_t200_trans_dn,
                            medication_before = co19_t530_twjhe_dn,
                            medication_since = co19_t530_trans_dn,
                            hospitalize = FALSE,
-                           severe = FALSE  ){
+                           severe = FALSE,
+                           days_before_offset = 15,
+                           days_before = 365){
 
   # Creating alignment date
   first_visit_PATIENTID <- since[ c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
@@ -123,11 +125,11 @@ createDataSet <- function( since = co19_t200_trans_dn,
   # 4CE Timeframe window
   dataAnalysisSelection$within_timeframe <-
     (
-      (dataAnalysisSelection$CARE_RELEASE_DATE <= dataAnalysisSelection$ALIGNMENT_DATE - 15) &
-        (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE - 365)
+      (dataAnalysisSelection$CARE_RELEASE_DATE <= dataAnalysisSelection$ALIGNMENT_DATE - days_before_offset) &
+        (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE - days_before)
     ) |
     (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE)
-  dataAnalysisSelection <- dataAnalysisSelection[dataAnalysisSelection$within_timeframe == TRUE,]
+#  dataAnalysisSelection <- dataAnalysisSelection[dataAnalysisSelection$within_timeframe == TRUE,]
 
   #add the age breaks as a column
   agebreaks <- c(0,3,6,12,18,26,50,70,80,150)
@@ -270,8 +272,10 @@ DailyCounts <- function(input=sinceAdmission) {
 
   ### Number patient on a given calendar date
   calendar_days_range <- as_date(first_calendar_day:last_calendar_day)
-  calendar_day_count <- calendar_day_count_cumulative <- vector(mode="list", length=length(calendar_days_range))
-  names(calendar_day_count_cumulative) <- names(calendar_day_count) <- as.character(calendar_days_range)
+  calendar_day_count <- vector(mode="list", length=length(calendar_days_range))
+  names(calendar_day_count) <- as.character(calendar_days_range)
+  calendar_day_count_cumulative <- calendar_day_count
+  calendar_cumulative_death <- calendar_day_count
   for (n in 1:length(calendar_days_range)) {
     day <- calendar_days_range[[n]]
     population$is_severe_that_day <- population$SEVERE_PATIENT_DATE < day
@@ -281,14 +285,24 @@ DailyCounts <- function(input=sinceAdmission) {
       select(is_severe_that_day) %>%
       table(useNA="no")
     calendar_day_count[[n]] <- as.data.frame(matrix(count_present, nrow=1, ncol=length(count_present), dimnames=list(c(day), names(count_present))))
-    count_cumulative <- population[day >= population$CARE_RELEASE_DATE, c("PATIENT_ID", "CARE_RELEASE_DATE", "is_severe_that_day")] %>%
+    count_cumulative <- population[day >= population$DATE_DIFF_IN_DAYS, c("PATIENT_ID", "CARE_RELEASE_DATE", "is_severe_that_day")] %>%
       unique() %>%
       select(is_severe_that_day) %>%
       table(useNA="no")
+
+     count_cumulative_death <- population[day >= population$DATE_DIFF_IN_DAYS, c("PATIENT_ID", "CARE_RELEASE_DATE", "DEATH")] %>%
+      unique() %>%
+       mutate(count_death = if_else(DEATH == "yes", 1, 0)) %>%
+       select(count_death) %>%
+      sum()
     calendar_day_count_cumulative[[n]] <- as.data.frame(matrix(count_cumulative,
                                                                nrow=1,
                                                                ncol=length(count_cumulative),
                                                                dimnames=list(c(day), names(count_cumulative))))
+    calendar_cumulative_death[[n]] <- as.data.frame(matrix(count_cumulative_death,
+                                                           nrow=1,
+                                                           ncol=length(count_cumulative_death),
+                                                           dimnames=list(c(day), names(count_cumulative_death))))
 
   }
   df_calendar_count <- bind_rows(calendar_day_count, .id="day")
@@ -306,6 +320,12 @@ DailyCounts <- function(input=sinceAdmission) {
                                                                na.rm=TRUE)
   names(df_calendar_count_cumulative)[which(names(df_calendar_count_cumulative)=="TRUE")] <- "cumulative_patient_severe"
   df_calendar_count_cumulative[["FALSE"]] <- NULL
+
+  df_calendar_cumulative_death <- bind_rows(calendar_cumulative_death, .id="day") %>%
+    rename(cumulative_patients_dead = V1)
+
+  df_calendar_count_cumulative <- left_join(df_calendar_count_cumulative, df_calendar_cumulative_death, by="day")
+
   return(list(df_calendar_count = df_calendar_count, df_calendar_count_cumulative = df_calendar_count_cumulative))
 }
 
@@ -360,7 +380,7 @@ co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$SUB_SICK), "SUB_SICK"] <- "J80"
 co19_t530_trans_dn[co19_t530_trans_dn$GNL_CD %in% c("430101ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
 co19_t530_twjhe_dn[co19_t530_twjhe_dn$GNL_CD %in% c("248902ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
 
-## ONLY FOR SAMPLE DATA: data management for sample medical history, to have overlapping MID
+# ONLY FOR SAMPLE DATA: data management for sample medical history, to have overlapping MID
 co19_t200_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
                                  length(co19_t200_twjhe_dn$MID),
                                  replace=T)
