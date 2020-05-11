@@ -3,7 +3,7 @@
 ##########################
 packages <- c("readxl","dplyr","tidyverse","tidyr","plyr", "lubridate")
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
-  install.packages(setdiff(packages, rownames(installed.packages())))  
+  install.packages(setdiff(packages, rownames(installed.packages())))
 }
 library(readxl)
 library(plyr)
@@ -11,6 +11,7 @@ library(dplyr)
 library(tidyverse)
 library(tidyr)
 library( lubridate )
+library(data.table)
 
 #################
 ### FUNCTIONS ###
@@ -19,89 +20,130 @@ library( lubridate )
 ##### when creating the data set we have to consider that the same patient can have multiple admissions
 ##### and that the same patient can be administered multiple drugs
 ##### and check that the merge is correct or look for alternatives to create the file, or create several files
-createDataSet <- function( input, medication, hospitalize, severe ){
-  
-  #variables of our interest
-  dataAnalysis = input[,c( "MID", "SEX_TP_CD", "PAT_AGE", "MAIN_SICK", "SUB_SICK", 
-                           "FOM_TP_CD", "RECU_FR_DD", "RECU_TO_DD","DGRSLT_TP_CD" )]
-  
+createDataSet <- function( since = co19_t200_trans_dn,
+                           before = co19_t200_twjhe_dn,
+                           medication_before = co19_t530_twjhe_dn,
+                           medication_since = co19_t530_trans_dn,
+                           hospitalize = FALSE,
+                           severe = FALSE  ){
+
+  # Creating alignment date
+  first_visit_PATIENTID <- since[ c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
+    group_by(MID) %>%
+    slice(which.min(RECU_FR_DD)) %>%
+    rename(ALIGNMENT_DATE = RECU_FR_DD)
+
+  #variables of interest
+  col_t200 <- c( "MID", "MAIN_SICK", "SUB_SICK",
+                 "FOM_TP_CD", "RECU_FR_DD", "RECU_TO_DD","DGRSLT_TP_CD",
+                 "BEFORE_SINCE")
+  since[["BEFORE_SINCE"]] <- "since"
+  before[["BEFORE_SINCE"]] <- "before"
+  dataAnalysis <- dplyr::bind_rows(since[col_t200], before[col_t200])
+
+  # Adding alignment date + unique patient personal information (Age)
+  dataAnalysis <- merge(dataAnalysis, first_visit_PATIENTID, by = "MID")
+
   #SEX_TP_CD to sex
   sex_tp_cd_map = read_excel("SEX_TP_CD.xlsx", sheet=1)
-  
+
   #Map the number for SEX_TP_CD to meaningful text
   dataAnalysis = merge(dataAnalysis, sex_tp_cd_map, by="SEX_TP_CD", all.x=T)
-  
+
   #Map death info for DGRSLT_TP_CD to meaningful
   dataAnalysis$DEATH <- ifelse( dataAnalysis$DGRSLT_TP_CD==4, "yes", "no")
-  
+
   #Create a data.frame with meaningful column names and joining main and sub sick under the same column
-  dataAnalysisSelection <- data.frame( PATIENT_ID  = dataAnalysis$MID, 
-                                       SEX = dataAnalysis$SEX, 
+  dataAnalysisSelection <- data.frame( PATIENT_ID  = dataAnalysis$MID,
+                                       SEX = dataAnalysis$SEX,
                                        DEATH = dataAnalysis$DEATH,
                                        AGE = dataAnalysis$PAT_AGE,
                                        DIAGNOSTIC_CODE = c( dataAnalysis$MAIN_SICK, dataAnalysis$SUB_SICK),
                                        CARE_RELEASE_DATE = dataAnalysis$RECU_FR_DD,
-                                       CARE_ENDS = dataAnalysis$RECU_TO_DD, 
-                                       HOSPITALIZATION = dataAnalysis$FOM_TP_CD
+                                       CARE_ENDS = dataAnalysis$RECU_TO_DD,
+                                       HOSPITALIZATION = dataAnalysis$FOM_TP_CD,
+                                       BEFORE_SINCE = dataAnalysis$BEFORE_SINCE,
+                                       ALIGNMENT_DATE = dataAnalysis$ALIGNMENT_DATE,
+                                       stringsAsFactors = F
   )
-  
-  #Create a new column with the diagnostic code at 3 digits level
+  dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")] <-
+    lapply(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")], as_date)
+
+    #Create a new column with the diagnostic code at 3 digits level
   dataAnalysisSelection$DIAGNOSTIC_3D <- substr(dataAnalysisSelection$DIAGNOSTIC_CODE, 1, 3)
-  
+
   #Select hospitalize patients ONLY
   if( hospitalize == TRUE){
     dataAnalysisSelection <- dataAnalysisSelection[ dataAnalysisSelection$HOSPITALIZATION == "021", ]
   }
-  
+
+  col_medications <- c("MID", "GNL_CD", "PRSCP_GRANT_NO")
+  medication <- dplyr::bind_rows(medication_since[col_medications], medication_since[col_medications])
   #Create a data.frame with the medication data and select only hospitalize patients
-  dataAnalysisMedication =  data.frame( PATIENT_ID  = medication$MID, 
-                                        MEDICATION  = medication$GNL_CD)
-  
-  #drug mapping
+  dataAnalysisMedication =  data.frame( PATIENT_ID  = medication$MID,
+                                        MEDICATION  = medication$GNL_CD,
+                                        MEDICATION_DATE = medication$PRSCP_GRANT_NO)
+
+  #drug mapping,
   gnl_to_4ce = read.delim("4CE_in_GNL_drug_overlap.tsv")
-  
+
   #merge both to do selection an analysis based on the ACT medication code
-  dataAnalysisMedicationComplete <- merge( dataAnalysisMedication, gnl_to_4ce, 
-                                           by.x = "MEDICATION", 
-                                           by.y = "GNL_CD", 
+  dataAnalysisMedicationComplete <- merge( dataAnalysisMedication, gnl_to_4ce[c("GNL_CD",
+                                                                                "ATC_Code",
+                                                                                "Type_for_4CE_Analysis",
+                                                                                "Class_Name",
+                                                                                "Med_Name_x")],
+                                           by.x = "MEDICATION",
+                                           by.y = "GNL_CD",
                                            all.x = TRUE )
-  
-  #merge everything in a unique data.frame
-  dataAnalysisSelection <- merge( dataAnalysisSelection, dataAnalysisMedicationComplete, by="PATIENT_ID", 
-                                  all = TRUE)
-  
-  #Select severe patients only
-  if( severe == TRUE ){
-    severePatientsIcd <- dataAnalysisSelection[ dataAnalysisSelection$DIAGNOSTIC_3D %in% c("J80", "J95"), "PATIENT_ID"]
-    severePatientsMed <- dataAnalysisSelection[ dataAnalysisSelection$Type_for_4CE_Analysis == "Severe Illness Medication", "PATIENT_ID" ]
-    severePatients <- unique( c( severePatientsIcd, severePatientsMed ))
-    dataAnalysisSelection <- dataAnalysisSelection[ dataAnalysisSelection$PATIENT_ID %in% severePatients, ]
-  }
-  
-  #transform dates columns as date format 
-  dataAnalysisSelection$CARE_RELEASE_DATE <- ymd(as.character(dataAnalysisSelection$CARE_RELEASE_DATE))
-  dataAnalysisSelection$CARE_ENDS <- ymd(as.character(dataAnalysisSelection$CARE_ENDS))
-  
-  #estimate the days off difference between care release and end date
-  dataAnalysisSelection$DATE_DIFF_IN_DAYS <- as.numeric(as.Date( dataAnalysisSelection$CARE_ENDS) -
-                                                          as.Date( dataAnalysisSelection$CARE_RELEASE_DATE))
+
+  # Merging everything into one dataframe
+  dataAnalysisSelection <- merge( dataAnalysisSelection,
+                                  dataAnalysisMedicationComplete,
+                                  by="PATIENT_ID",
+                                  all.x = T)
+
+  severePatients <- dataAnalysisSelection[ (dataAnalysisSelection$DIAGNOSTIC_3D %in% c("J80", "J95")) |
+                                             (dataAnalysisSelection$Type_for_4CE_Analysis == "Severe Illness Medication"),
+                                           c("PATIENT_ID", "CARE_RELEASE_DATE")] %>%
+    group_by(PATIENT_ID) %>%
+    slice(which.min(CARE_RELEASE_DATE)) %>%
+    rename(SEVERE_PATIENT_DATE = CARE_RELEASE_DATE)
+  severePatients[["SEVERE_PATIENT"]] <- T
+
+  dataAnalysisSelection <- left_join(dataAnalysisSelection,
+                                     severePatients,
+                                     by = "PATIENT_ID")
+  dataAnalysisSelection[["SEVERE_PATIENT"]] <- replace_na(dataAnalysisSelection[["SEVERE_PATIENT"]], F)
+
+
+  #estimate the days of difference between care release and end date
+  dataAnalysisSelection$DATE_DIFF_IN_DAYS <- as.numeric(dataAnalysisSelection$CARE_ENDS -dataAnalysisSelection$CARE_RELEASE_DATE)
+
+  # 4CE Timeframe window
+  dataAnalysisSelection$within_timeframe <-
+    (
+      (dataAnalysisSelection$CARE_RELEASE_DATE <= dataAnalysisSelection$ALIGNMENT_DATE - 15) &
+        (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE - 365)
+    ) |
+    (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE)
+  dataAnalysisSelection <- dataAnalysisSelection[dataAnalysisSelection$within_timeframe == TRUE,]
 
   #add the age breaks as a column
   agebreaks <- c(0,3,6,12,18,26,50,70,80,150)
   agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80+")
-  
-  setDT(dataAnalysisSelection)[, AGE_RANGE := cut(AGE,
-                                                  breaks = agebreaks, 
-                                                  right = FALSE, 
+
+  data.table::setDT(dataAnalysisSelection)[, AGE_RANGE := cut(AGE,
+                                                  breaks = agebreaks,
+                                                  right = FALSE,
                                                   labels = agelabels)]
-  
   return( dataAnalysisSelection )
 }
 
 demographicsFile <- function( input, by.sex, by.age ){
-  
-  selection <- unique( input[, c("PATIENT_ID", "AGE_RANGE", "SEX") ] )
-  
+
+  selection <- unique( input[ ,c("PATIENT_ID", "AGE_RANGE", "SEX") ] )
+
   if( by.sex == TRUE & by.age == TRUE){
     demographicsCount <- rbind(plyr::ddply(selection,
                                            .(AGE_RANGE,SEX),
@@ -115,18 +157,18 @@ demographicsFile <- function( input, by.sex, by.age ){
                                            .(SEX),
                                            summarise,COUNT = length(PATIENT_ID)))
   }
-  
+
   demographicsCount$RACE <- "Other"
-  
+
   return( demographicsCount )
 }
 
 diagnosesFile <- function( input, threeDigits, by.sex, by.age ){
-  
+
   if( threeDigits == TRUE ){
     selection <- input[, c("PATIENT_ID", "DIAGNOSTIC_3D", "SEX", "AGE_RANGE")]
     selection <- unique( selection )
-    
+
     if( by.sex == TRUE & by.age == FALSE ){
       selectionCount <- rbind(plyr::ddply(selection,
                                           .(DIAGNOSTIC_3D,SEX),
@@ -148,7 +190,7 @@ diagnosesFile <- function( input, threeDigits, by.sex, by.age ){
   }else{
     selection <- input[, c("PATIENT_ID", "DIAGNOSTIC_CODE", "SEX", "AGE_RANGE")]
     selection <- unique( selection )
-    
+
     if( by.sex == TRUE & by.age == FALSE ){
       selectionCount <- rbind(plyr::ddply(selection,
                                           .(DIAGNOSTIC_CODE,SEX),
@@ -171,7 +213,7 @@ diagnosesFile <- function( input, threeDigits, by.sex, by.age ){
 }
 
 medicationFile <- function( input, by.sex, by.age, aggregationLevel ){
-  
+
   if( aggregationLevel == "GNL"){
     input <- unique( input[ , c("PATIENT_ID", "MEDICATION", "SEX", "AGE_RANGE")] )
     input <- input[!is.na( input$MEDICATION ), ]
@@ -179,6 +221,7 @@ medicationFile <- function( input, by.sex, by.age, aggregationLevel ){
     input <- unique( input[ , c("PATIENT_ID", "ATC_Code", "SEX", "AGE_RANGE")] )
     colnames(input)[2] <- "MEDICATION"
     input <- input[!is.na( input$MEDICATION ), ]
+
   }else if( aggregationLevel == "MEDICATION_NAME"){
     input <- unique( input[ , c("PATIENT_ID", "Med_Name_x", "SEX", "AGE_RANGE")] )
     colnames(input)[2] <- "MEDICATION"
@@ -189,7 +232,7 @@ medicationFile <- function( input, by.sex, by.age, aggregationLevel ){
     input <- input[!is.na( input$MEDICATION ), ]
   }
 
-  
+
   if( by.sex == FALSE & by.age == FALSE){
     medicationCount <- rbind(plyr::ddply(input,
                                          .(MEDICATION),
@@ -211,35 +254,84 @@ medicationFile <- function( input, by.sex, by.age, aggregationLevel ){
   return( medicationCount)
 }
 
-dailyCountsFile <- function( input ){
-  
-  dailyCounts <- data.frame( CALENDAR_DATE = unique( sort(c( input$CARE_RELEASE_DATE, 
-                                                             input$CARE_ENDS))), 
-                             CUMULATIVE_PATIENTS_ALL = NA,
-                             CUMULATIVE_PATIENTS_SEVERE = NA, 
-                             CUMULATIVE_PATIENTS_DEAD = NA,
-                             NUM_PATIENTS_IN_HOSPITAL_ON_THIS_DATE = NA, 
-                             NUM_PATIENTS_IN_HOSPITAL_AND_SEVERE_ON_THIS_DATE = NA )
-  
-  for( i in 1:nrow(dailyCounts)){
-    
-    dailyCounts$CUMULATIVE_PATIENTS_ALL[i] <- length( unique( 
-      input[ as.Date( input$CARE_RELEASE_DATE) <= dailyCounts$CALENDAR_DATE[i] &
-               as.Date( input$CARE_ENDS) >= dailyCounts$CALENDAR_DATE[i], "PATIENT_ID" ] ))
-    
-    dailyCounts$NUM_PATIENTS_IN_HOSPITAL_ON_THIS_DATE[i] <- length( unique( 
-      input[ as.Date( input$CARE_RELEASE_DATE) <= dailyCounts$CALENDAR_DATE[i] &
-               as.Date( input$CARE_ENDS) >= dailyCounts$CALENDAR_DATE[i] &
-               input$DEATH == "no", "PATIENT_ID" ] ))
-    
-    dailyCounts$CUMULATIVE_PATIENTS_DEAD[i] <-  length( unique( 
-      input[ as.Date( input$CARE_RELEASE_DATE) <= dailyCounts$CALENDAR_DATE[i] &
-               as.Date( input$CARE_ENDS) >= dailyCounts$CALENDAR_DATE[i] &
-               input$DEATH == "yes", "PATIENT_ID" ] ))                                                                                     
+
+DailyCounts <- function(input=sinceAdmission) {
+  population <- unique(input[, c("PATIENT_ID", "SEX", "DEATH", "SEVERE_PATIENT", "CARE_RELEASE_DATE", "CARE_ENDS", "DATE_DIFF_IN_DAYS", "SEVERE_PATIENT_DATE")])
+  population$los_visit_day <- population$CARE_RELEASE_DATE - population$CARE_ENDS
+
+  # Prevent absurd dates
+  first_calendar_day <- if_else(min(population$CARE_RELEASE_DATE) < as_date("2019-12-31"),
+                                as_date("2019-12-31"),
+                                min(population$CARE_RELEASE_DATE, na.rm = T))
+  last_calendar_day <- if_else(max(population$CARE_ENDS) > lubridate::today(tz="UTC"),
+                               lubridate::today(tz="UTC"),
+                               max(population$CARE_ENDS, na.rm = T))
+  max_los_visit <- as.numeric(max(population$DATE_DIFF_IN_DAYS, na.rm = T))
+
+  ### Number patient on a given calendar date
+  calendar_days_range <- as_date(first_calendar_day:last_calendar_day)
+  calendar_day_count <- calendar_day_count_cumulative <- vector(mode="list", length=length(calendar_days_range))
+  names(calendar_day_count_cumulative) <- names(calendar_day_count) <- as.character(calendar_days_range)
+  for (n in 1:length(calendar_days_range)) {
+    day <- calendar_days_range[[n]]
+    population$is_severe_that_day <- population$SEVERE_PATIENT_DATE < day
+    population$is_severe_that_day <- tidyr::replace_na(population$is_severe_that_day, FALSE)
+    count_present <- population[(day >= population$CARE_RELEASE_DATE) & (day <= population$CARE_ENDS), c("PATIENT_ID", "is_severe_that_day")] %>%
+      unique() %>%
+      select(is_severe_that_day) %>%
+      table(useNA="no")
+    calendar_day_count[[n]] <- as.data.frame(matrix(count_present, nrow=1, ncol=length(count_present), dimnames=list(c(day), names(count_present))))
+    count_cumulative <- population[day >= population$CARE_RELEASE_DATE, c("PATIENT_ID", "CARE_RELEASE_DATE", "is_severe_that_day")] %>%
+      unique() %>%
+      select(is_severe_that_day) %>%
+      table(useNA="no")
+    calendar_day_count_cumulative[[n]] <- as.data.frame(matrix(count_cumulative,
+                                                               nrow=1,
+                                                               ncol=length(count_cumulative),
+                                                               dimnames=list(c(day), names(count_cumulative))))
+
   }
-  return( dailyCounts )
+  df_calendar_count <- bind_rows(calendar_day_count, .id="day")
+  df_calendar_count$num_patients_in_hospital_on_this_date <- apply(df_calendar_count[c("TRUE", "FALSE")],
+                                                                   1,
+                                                                   sum,
+                                                                   na.rm=TRUE)
+  names(df_calendar_count)[which(names(df_calendar_count)=="TRUE")] <- "num_patients_in_hospital_and_severe_on_this_date"
+  df_calendar_count[["FALSE"]] <- NULL
+
+  df_calendar_count_cumulative <- bind_rows(calendar_day_count_cumulative, .id="day")
+  df_calendar_count_cumulative$cumulative_patient_all <- apply(df_calendar_count_cumulative[c("TRUE", "FALSE")],
+                                                               1,
+                                                               sum,
+                                                               na.rm=TRUE)
+  names(df_calendar_count_cumulative)[which(names(df_calendar_count_cumulative)=="TRUE")] <- "cumulative_patient_severe"
+  df_calendar_count_cumulative[["FALSE"]] <- NULL
+  return(list(df_calendar_count = df_calendar_count, df_calendar_count_cumulative = df_calendar_count_cumulative))
 }
 
+ClinicalCourse <- function(long_df = sinceAdmission) {
+  population <- unique(long_df[, c("PATIENT_ID", "SEX", "DEATH", "SEVERE_PATIENT", "CARE_RELEASE_DATE", "CARE_ENDS", "DATE_DIFF_IN_DAYS", "SEVERE_PATIENT_DATE")])
+  max_los_visit <- as.numeric(max(population$DATE_DIFF_IN_DAYS, na.rm = T))
+  relative_days_range <- 0:max_los_visit
+  relative_day_count <- vector(mode = "list", length = length(relative_days_range))
+  names(relative_day_count) <- as.character(relative_days_range)
+  for (n in 1:length(relative_days_range)) {
+    day <- relative_days_range[[n]]
+    count <- population[day <= population$DATE_DIFF_IN_DAYS, c("PATIENT_ID", "SEVERE_PATIENT")] %>%
+      unique() %>%
+      select(SEVERE_PATIENT) %>%
+      table(useNA="no")
+    relative_day_count[[n]] <- as.data.frame(matrix(count, nrow=1, ncol=length(count), dimnames=list(c(day), names(count))))
+  }
+  df_relative_count <- bind_rows(relative_day_count, .id="day")
+  df_relative_count$num_patients_all_still_in_hospital <- apply(df_relative_count[c("TRUE", "FALSE")],
+                                                                1,
+                                                                sum,
+                                                                na.rm=TRUE)
+  names(df_relative_count)[which(names(df_relative_count)=="TRUE")] <- "num_patients_ever_severe_still_in_hospital"
+  df_relative_count[["FALSE"]] <- NULL
+  return(df_relative_count)
+}
 
 #sink("mylogs.txt")
 
@@ -249,8 +341,8 @@ dailyCountsFile <- function( input ){
 # this code is extracted from the GitHub repo file extract.R
 
 #corona claim data
-co19_t200_trans_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet=2)
-
+co19_t200_trans_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx",
+                                sheet=2)
 #medication for claim data
 co19_t530_trans_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet=5)
 
@@ -260,30 +352,49 @@ co19_t200_twjhe_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet
 #medication for medical use history data
 co19_t530_twjhe_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet=9)
 
+## ONLY FOR SAMPLE DATA: to have severe ICD codes in sample data
+co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J029", "MAIN_SICK"] <- "J80"
+co19_t200_trans_dn[co19_t200_trans_dn$SUB_SICK == "J029", "SUB_SICK"] <- "J80"
+co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$MAIN_SICK), "MAIN_SICK"] <- "J80"
+co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$SUB_SICK), "SUB_SICK"] <- "J80"
+co19_t530_trans_dn[co19_t530_trans_dn$GNL_CD %in% c("430101ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
+co19_t530_twjhe_dn[co19_t530_twjhe_dn$GNL_CD %in% c("248902ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
+
+## ONLY FOR SAMPLE DATA: data management for sample medical history, to have overlapping MID
+co19_t200_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
+                                 length(co19_t200_twjhe_dn$MID),
+                                 replace=T)
+co19_t530_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
+                                 length(co19_t530_twjhe_dn$MID),
+                                 replace=T)
+co19_t530_trans_dn$MID <- sample(co19_t200_trans_dn$MID,
+                                 length(co19_t530_trans_dn$MID),
+                                 replace=T)
+co19_t200_twjhe_dn[co19_t200_twjhe_dn$RECU_FR_DD %in% c(20190101, 20150404),'RECU_FR_DD'] <- "20200101"
 
 #########################
 ## CREATE THE DATASETS ##
 ##################@######
-sinceAdmission <- createDataSet( input       = co19_t200_trans_dn,
-                                 medication  = co19_t530_trans_dn,
-                                 hospitalize = FALSE,
-                                 severe      = FALSE )
-
-beforeAdmission <- createDataSet( input       = co19_t200_twjhe_dn,
-                                  medication  = co19_t530_twjhe_dn,
-                                  hospitalize = FALSE,
-                                  severe      = FALSE )
-
+DataSet <- createDataSet( since              = co19_t200_trans_dn,
+                          before             = co19_t200_twjhe_dn,
+                          medication_since   = co19_t530_trans_dn,
+                          medication_before  = co19_t530_twjhe_dn,
+                          hospitalize = FALSE)
+sinceAdmission <- DataSet[DataSet$BEFORE_SINCE == "since",]
+beforeAdmission <- DataSet[DataSet$BEFORE_SINCE == "before",]
 
 ###################
 ## DAILY COUNTS ##
 ##################
-dailyCountsFile( input = sinceAdmission )
-dailyCountsFile( input = beforeAdmission )
+list_daily_counts <- DailyCounts(sinceAdmission)
+df_calendar_count <- list_daily_counts[["df_calendar_count"]]
+df_calendar_count_cumulative <- list_daily_counts[["df_calendar_count_cumulative"]]
+df_clinical_course <- ClinicalCourse(sinceAdmission)
 
 #########################
 ## DEMOGRAPHIC COUNTS ##
 ########################
+
 demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = FALSE )
 demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = TRUE )
 demographicsFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE )
