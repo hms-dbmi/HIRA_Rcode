@@ -86,7 +86,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
                                         MEDICATION_DATE = medication$PRSCP_GRANT_NO)
 
   #drug mapping,
-  gnl_to_4ce = read.delim("/Users/alba/Desktop/COVID-19/HIRA_Rcode/code/python/4CE_in_GNL_drug_overlap.tsv")
+  gnl_to_4ce = read.delim("./4CE_in_GNL_drug_overlap.tsv")
 
   #merge both to do selection an analysis based on the ACT medication code
   dataAnalysisMedicationComplete <- merge( dataAnalysisMedication, gnl_to_4ce[c("GNL_CD",
@@ -343,7 +343,7 @@ ClinicalCourse <- function(long_df = sinceAdmission) {
     relative_day_count[[n]] <- as.data.frame(matrix(count, nrow=1, ncol=length(count), dimnames=list(c(day), names(count))))
   }
   df_relative_count <- bind_rows(relative_day_count, .id="day")
-  df_relative_count$num_patients_all_still_in_hospital <- apply(df_relative_count[c("TRUE", "FALSE")],
+  df_relative_count$num_patients_all_still_in_hospital <- apply(df_relative_count[-which(names(df_relative_count) == "day")],
                                                                 1,
                                                                 sum,
                                                                 na.rm=TRUE)
