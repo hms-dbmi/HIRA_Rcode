@@ -123,13 +123,13 @@ tableData <- function ( phenoCode, data, cases, control ) {
 # this code is extracted from the GitHub repo file extract.R
 
 #corona claim data
-co19_t200_trans_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet=2)
+co19_t200_trans_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=2)
 
 #medical use history data
-co19_t200_twjhe_dn = read_excel("HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
+co19_t200_twjhe_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
 
 #SEX_TP_CD to sex
-sex_tp_cd_map = read_excel("SEX_TP_CD.xlsx", sheet=1)
+sex_tp_cd_map = read_excel("./Korean_Codes/SEX_TP_CD.xlsx", sheet=1)
 
 
 #####################
@@ -173,12 +173,14 @@ demographicsBySexCounts <- rbind(plyr::ddply(demographicsBySex,
                                        summarise,COUNT = length(SEX)))
 
 demographicsBySexCounts
-save(demographicsBySexCounts, file="demographicsBySexCountsCoronaClaim.RData")
+
+dir.create("./Results", showWarning = FALSE)
+save(demographicsBySexCounts, file="./Results/demographicsBySexCountsCoronaClaim.RData")
 
 #Diagnostic count
 diagnosticCount <- phenotypeCount( data = dataAnalysisSelection )
 diagnosticCount
-save(diagnosticCount, file="diagnosticCountCoronaClaim.RData")
+save(diagnosticCount, file="./Results/diagnosticCountCoronaClaim.RData")
 
 #Diagnostic count by sex
 diagnosticBySex <- dataAnalysisSelection[, c("PATIENT_ID", "DIAGNOSTIC_3D", "SEX")]
@@ -189,7 +191,7 @@ diagnosticBySexCounts <- rbind(plyr::ddply(diagnosticBySex,
                                              summarise,COUNT = length(DIAGNOSTIC_3D)))
 
 diagnosticBySexCounts
-save(diagnosticBySexCounts, file="diagnosticBySexCountsCoronaClaim.RData")
+save(diagnosticBySexCounts, file="./Results/diagnosticBySexCountsCoronaClaim.RData")
 
 
 ##### Sex PheWAS 
@@ -201,7 +203,7 @@ sexPheWAS_0to100 <- myPhewasAnalysis(data    = dataAnalysisSelection,
                        control = "male",
                        correctionMethod = "bonferroni" )
 
-save(sexPheWAS_0to100, file="sexPheWAS_0to100_CoronaClaim.RData")
+save(sexPheWAS_0to100, file="./Results/sexPheWAS_0to100_CoronaClaim.RData")
 
 #Sex PheWAS by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -224,7 +226,7 @@ for( i in 1:length(ageRanges)){
                                     control = "male",
                                     correctionMethod = "bonferroni" )
       
-      save(sexPheWAS, file=paste0("sexPheWAS_", min, "to", max, "_CoronaClaim.RData"))
+      save(sexPheWAS, file=paste0("./Results/sexPheWAS_", min, "to", max, "_CoronaClaim.RData"))
       
       
     }else{
@@ -244,7 +246,7 @@ fisher_0to100 <- fisherAnalysis( data = dataAnalysisSelection,
                    control = "male",
                    correctionMethod = "bonferroni")
 
-save(fisher_0to100, file="fisher_0to100_CoronaClaim.RData")
+save(fisher_0to100, file="./Results/fisher_0to100_CoronaClaim.RData")
 
 #Sex Fisher by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -263,7 +265,7 @@ for( i in 1:length(ageRanges)){
                                    control = "male",
                                    correctionMethod = "bonferroni")
   
-  save(sexFisher, file=paste0("sexFisher_", min, "to", max, "_CoronaClaim.RData"))
+  save(sexFisher, file=paste0("./Results/sexFisher_", min, "to", max, "_CoronaClaim.RData"))
   
 }
 
@@ -313,11 +315,11 @@ demographicsBySexCounts <- rbind(plyr::ddply(demographicsBySex,
                                              summarise,COUNT = length(SEX)))
 
 demographicsBySexCounts
-save(demographicsBySexCounts, file="demographicsBySexCounts_MedicalHistory.RData")
+save(demographicsBySexCounts, file="./Results/demographicsBySexCounts_MedicalHistory.RData")
 
 #Diagnostic count
 diagnosticCount <- phenotypeCount( data = dataAnalysisSelection )
-save(diagnosticCount, file="diagnosticCount_MedicalHistory.RData")
+save(diagnosticCount, file="./Results/diagnosticCount_MedicalHistory.RData")
 
 #Diagnostic count by sex
 diagnosticBySex <- dataAnalysisSelection[, c("PATIENT_ID", "DIAGNOSTIC_3D", "SEX")]
@@ -328,7 +330,7 @@ diagnosticBySexCounts <- rbind(plyr::ddply(diagnosticBySex,
                                            summarise,COUNT = length(DIAGNOSTIC_3D)))
 
 diagnosticBySexCounts
-save(diagnosticBySexCounts, file="diagnosticBySexCounts_MedicalHistory.RData")
+save(diagnosticBySexCounts, file="./Results/diagnosticBySexCounts_MedicalHistory.RData")
 
 
 
@@ -341,7 +343,7 @@ sexPheWAS_0to100 <- myPhewasAnalysis(data    = dataAnalysisSelection,
                                      control = "male",
                                      correctionMethod = "bonferroni" )
 
-save(sexPheWAS_0to100, file="sexPheWAS_0to100_MedicalHistory.RData")
+save(sexPheWAS_0to100, file="./Results/sexPheWAS_0to100_MedicalHistory.RData")
 
 #Sex PheWAS by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -364,7 +366,7 @@ for( i in 1:length(ageRanges)){
                                     control = "male",
                                     correctionMethod = "bonferroni" )
       
-      save(sexPheWAS, file=paste0("sexPheWAS_", min, "to", max, "_MedicalHistory.RData"))
+      save(sexPheWAS, file=paste0("./Results/sexPheWAS_", min, "to", max, "_MedicalHistory.RData"))
       
       
     }else{
@@ -385,7 +387,7 @@ fisher_0to100 <- fisherAnalysis( data = dataAnalysisSelection,
                                  control = "male",
                                  correctionMethod = "bonferroni")
 
-save(fisher_0to100, file="fisher_0to100_MedicalHistory.RData")
+save(fisher_0to100, file="./Results/fisher_0to100_MedicalHistory.RData")
 
 #Sex Fisher by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -404,7 +406,7 @@ for( i in 1:length(ageRanges)){
                                control = "male",
                                correctionMethod = "bonferroni")
   
-  save(sexFisher, file=paste0("sexFisher_", min, "to", max, "_MedicalHistory.RData"))
+  save(sexFisher, file=paste0("./Results/sexFisher_", min, "to", max, "_MedicalHistory.RData"))
   
 }
 sink()
