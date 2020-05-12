@@ -46,7 +46,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
   dataAnalysis <- merge(dataAnalysis, first_visit_PATIENTID, by = "MID")
 
   #SEX_TP_CD to sex
-  sex_tp_cd_map = read_excel("./Korean_Codes/SEX_TP_CD.xlsx", sheet=1)
+  sex_tp_cd_map = read_excel("./SEX_TP_CD.xlsx", sheet=1)
 
   #Map the number for SEX_TP_CD to meaningful text
   dataAnalysis = merge(dataAnalysis, sex_tp_cd_map, by="SEX_TP_CD", all.x=T)
@@ -70,7 +70,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
   dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")] <-
     lapply(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")], as_date)
 
-    #Create a new column with the diagnostic code at 3 digits level
+  #Create a new column with the diagnostic code at 3 digits level
   dataAnalysisSelection$DIAGNOSTIC_3D <- substr(dataAnalysisSelection$DIAGNOSTIC_CODE, 1, 3)
 
   #Select hospitalize patients ONLY
@@ -80,7 +80,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
       message("There is not hospitalize patients in this dataset.")
       stop()
     }
-  
+
   }
 
   col_medications <- c("MID", "GNL_CD", "PRSCP_GRANT_NO")
@@ -119,9 +119,12 @@ createDataSet <- function( since = co19_t200_trans_dn,
   if( nrow(severePatients)!= 0){
     severePatients[["SEVERE_PATIENT"]] <- T
     dataAnalysisSelection <- left_join(dataAnalysisSelection,
-                                     severePatients,
-                                     by = "PATIENT_ID")
-  dataAnalysisSelection[["SEVERE_PATIENT"]] <- replace_na(dataAnalysisSelection[["SEVERE_PATIENT"]], F) 
+                                       severePatients,
+                                       by = "PATIENT_ID")
+    dataAnalysisSelection[["SEVERE_PATIENT"]] <- replace_na(dataAnalysisSelection[["SEVERE_PATIENT"]], F)
+  } else {
+    dataAnalysisSelection[["SEVERE_PATIENT"]] <- FALSE
+    dataAnalysisSelection[["SEVERE_PATIENT_DATE"]] <- NA
   }
 
   #estimate the days of difference between care release and end date
@@ -134,23 +137,23 @@ createDataSet <- function( since = co19_t200_trans_dn,
         (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE - days_before)
     ) |
     (dataAnalysisSelection$CARE_RELEASE_DATE >= dataAnalysisSelection$ALIGNMENT_DATE)
-#  dataAnalysisSelection <- dataAnalysisSelection[dataAnalysisSelection$within_timeframe == TRUE,]
+  #  dataAnalysisSelection <- dataAnalysisSelection[dataAnalysisSelection$within_timeframe == TRUE,]
 
   #add the age breaks as a column
   agebreaks <- c(0,3,6,12,18,26,50,70,80,150)
   agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80+")
 
   data.table::setDT(dataAnalysisSelection)[, AGE_RANGE := cut(AGE,
-                                                  breaks = agebreaks,
-                                                  right = FALSE,
-                                                  labels = agelabels)]
+                                                              breaks = agebreaks,
+                                                              right = FALSE,
+                                                              labels = agelabels)]
   return( dataAnalysisSelection )
 }
 
 demographicsFile <- function( input, by.sex, by.age, severe ){
-  
+
   selection <- unique( input[ ,c("PATIENT_ID", "AGE_RANGE", "SEX", "SEVERE_PATIENT") ] )
-  
+
   if( by.sex == TRUE & by.age == TRUE & severe == TRUE ){
     demographicsCount <- rbind(plyr::ddply(selection,
                                            .(AGE_RANGE,SEX, SEVERE_PATIENT),
@@ -160,7 +163,7 @@ demographicsFile <- function( input, by.sex, by.age, severe ){
                                            .(AGE_RANGE,SEX),
                                            summarise,COUNT = length(PATIENT_ID)))
   }else if( by.sex == FALSE & by.age == TRUE & severe == TRUE){
-    
+
     demographicsCount <- rbind(plyr::ddply(selection,
                                            .(AGE_RANGE, SEVERE_PATIENT),
                                            summarise,COUNT = length(PATIENT_ID)))
@@ -172,16 +175,16 @@ demographicsFile <- function( input, by.sex, by.age, severe ){
     demographicsCount <- rbind(plyr::ddply(selection,
                                            .(SEX, SEVERE_PATIENT),
                                            summarise,COUNT = length(PATIENT_ID)))
-    
+
   }else if( by.sex == TRUE & by.age == FALSE & severe == FALSE){
-    
+
     demographicsCount <- rbind(plyr::ddply(selection,
                                            .(SEX),
                                            summarise,COUNT = length(PATIENT_ID)))
-    
+
   }
   demographicsCount$RACE <- "Other"
-  
+
   return( demographicsCount )
 }
 
@@ -262,7 +265,7 @@ diagnosesFile <- function( input, threeDigits, by.sex, by.age, severe ){
                                           .(DIAGNOSTIC_CODE, SEVERE_PATIENT),
                                           summarise,COUNT = length(DIAGNOSTIC_CODE)))
     }
- }
+  }
   return( selectionCount )
 }
 
@@ -358,10 +361,10 @@ DailyCounts <- function(input=sinceAdmission) {
       select(is_severe_that_day) %>%
       table(useNA="no")
 
-     count_cumulative_death <- population[day >= population$DATE_DIFF_IN_DAYS, c("PATIENT_ID", "CARE_RELEASE_DATE", "DEATH")] %>%
+    count_cumulative_death <- population[day >= population$DATE_DIFF_IN_DAYS, c("PATIENT_ID", "CARE_RELEASE_DATE", "DEATH")] %>%
       unique() %>%
-       mutate(count_death = if_else(DEATH == "yes", 1, 0)) %>%
-       select(count_death) %>%
+      mutate(count_death = if_else(DEATH == "yes", 1, 0)) %>%
+      select(count_death) %>%
       sum()
     calendar_day_count_cumulative[[n]] <- as.data.frame(matrix(count_cumulative,
                                                                nrow=1,
@@ -374,7 +377,7 @@ DailyCounts <- function(input=sinceAdmission) {
 
   }
   df_calendar_count <- bind_rows(calendar_day_count, .id="day")
-  df_calendar_count$num_patients_in_hospital_on_this_date <- apply(df_calendar_count[c("TRUE", "FALSE")],
+  df_calendar_count$num_patients_in_hospital_on_this_date <- apply(df_calendar_count[which(names(df_calendar_count) %in% c("TRUE", "FALSE"))],
                                                                    1,
                                                                    sum,
                                                                    na.rm=TRUE)
@@ -382,7 +385,7 @@ DailyCounts <- function(input=sinceAdmission) {
   df_calendar_count[["FALSE"]] <- NULL
 
   df_calendar_count_cumulative <- bind_rows(calendar_day_count_cumulative, .id="day")
-  df_calendar_count_cumulative$cumulative_patient_all <- apply(df_calendar_count_cumulative[c("TRUE", "FALSE")],
+  df_calendar_count_cumulative$cumulative_patient_all <- apply(df_calendar_count_cumulative[which(names(df_calendar_count) %in% c("TRUE", "FALSE"))],
                                                                1,
                                                                sum,
                                                                na.rm=TRUE)
@@ -429,39 +432,40 @@ ClinicalCourse <- function(long_df = sinceAdmission) {
 # this code is extracted from the GitHub repo file extract.R
 
 #corona claim data
-co19_t200_trans_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx",
+co19_t200_trans_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx",
                                 sheet=2)
 #medication for claim data
-co19_t530_trans_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=5)
+co19_t530_trans_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=5)
 
 #medical use history data
-co19_t200_twjhe_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
+co19_t200_twjhe_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
 
 #medication for medical use history data
-co19_t530_twjhe_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=9)
-
-## ONLY FOR SAMPLE DATA: to have severe ICD codes in sample data
-#co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J029", "MAIN_SICK"] <- "J80"
-#co19_t200_trans_dn[co19_t200_trans_dn$SUB_SICK == "J029", "SUB_SICK"] <- "J80"
-#co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$MAIN_SICK), "MAIN_SICK"] <- "J80"
-#co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$SUB_SICK), "SUB_SICK"] <- "J80"
-#co19_t530_trans_dn[co19_t530_trans_dn$GNL_CD %in% c("430101ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
-#co19_t530_twjhe_dn[co19_t530_twjhe_dn$GNL_CD %in% c("248902ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
-
-# ONLY FOR SAMPLE DATA: data management for sample medical history, to have overlapping MID
-#co19_t200_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
-#                                 length(co19_t200_twjhe_dn$MID),
-#                                 replace=T)
-#co19_t530_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
-#                                 length(co19_t530_twjhe_dn$MID),
-#                                 replace=T)
-#co19_t530_trans_dn$MID <- sample(co19_t200_trans_dn$MID,
-#                                 length(co19_t530_trans_dn$MID),
-#                                 replace=T)
-#co19_t200_twjhe_dn[co19_t200_twjhe_dn$RECU_FR_DD %in% c(20190101, 20150404),'RECU_FR_DD'] <- "20200101"
-
-#ONLY FOR SAMPLE DATA: hospitalization patients
-#co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J80", "FOM_TP_CD"] <- "021"
+co19_t530_twjhe_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=9)
+#
+# ## ONLY FOR SAMPLE DATA: to have severe ICD codes in sample data
+# co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J029", "MAIN_SICK"] <- "J80"
+# co19_t200_trans_dn[co19_t200_trans_dn$SUB_SICK == "J029", "SUB_SICK"] <- "J80"
+# co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$MAIN_SICK), "MAIN_SICK"] <- "J80"
+# co19_t530_twjhe_dn[is.na(co19_t200_twjhe_dn$SUB_SICK), "SUB_SICK"] <- "J80"
+# co19_t530_trans_dn[co19_t530_trans_dn$GNL_CD %in% c("430101ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
+# co19_t530_twjhe_dn[co19_t530_twjhe_dn$GNL_CD %in% c("248902ATB", "179303ATE"), "GNL_CD"] <- "450200BIJ"
+#
+# # ONLY FOR SAMPLE DATA: data management for sample medical history, to have overlapping MID
+# co19_t200_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
+#                                  length(co19_t200_twjhe_dn$MID),
+#                                  replace=T)
+# co19_t530_twjhe_dn$MID <- sample(co19_t200_trans_dn$MID,
+#                                  length(co19_t530_twjhe_dn$MID),
+#                                  replace=T)
+# co19_t530_trans_dn$MID <- sample(co19_t200_trans_dn$MID,
+#                                  length(co19_t530_trans_dn$MID),
+#                                  replace=T)
+# co19_t200_twjhe_dn[co19_t200_twjhe_dn$RECU_FR_DD %in% c(20190101, 20150404),'RECU_FR_DD'] <- "20200101"
+#
+# #ONLY FOR SAMPLE DATA: hospitalization patients
+#co19_t200_trans_dn[1, "FOM_TP_CD"] <- "021"
+#co19_t200_twjhe_dn[1, "FOM_TP_CD"] <- "021"
 
 #################################################
 ## CREATE THE DATASETS: HOSPITALIZED PATIENTS ##
@@ -470,7 +474,7 @@ DataSet <- createDataSet( since              = co19_t200_trans_dn,
                           before             = co19_t200_twjhe_dn,
                           medication_since   = co19_t530_trans_dn,
                           medication_before  = co19_t530_twjhe_dn,
-                          hospitalize = TRUE)
+                          hospitalize = T)
 sinceAdmission <- DataSet[DataSet$BEFORE_SINCE == "since",]
 beforeAdmission <- DataSet[DataSet$BEFORE_SINCE == "before",]
 
@@ -789,3 +793,5 @@ save( medicationBeforeAdmission_bySexAndAge_GNL, file="./Results/medicationBefor
 save( medicationBeforeAdmission_bySexAndAge_ATC, file="./Results/medicationBeforeAdmission_bySexAndAge_ATC_All.RData")
 save( medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME, file="./Results/medicationBeforeAdmission_bySexAndAge_MEDICATION_NAME_All.RData")
 save( medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS, file="./Results/medicationBeforeAdmission_bySexAndAge_MEDICATION_CLASS_All.RData")
+
+
