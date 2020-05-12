@@ -1,3 +1,6 @@
+##### COVID DATA
+covid_file_path <- "./HIRA COVID-19 Sample Data_20200325.xlsx"
+
 ##########################
 # Libraries installation #
 ##########################
@@ -12,6 +15,21 @@ library(tidyverse)
 library(tidyr)
 library( lubridate )
 library(data.table)
+
+
+#corona claim data
+co19_t200_trans_dn = read_excel(covid_file_path,
+                                sheet=2)
+#medication for claim data
+co19_t530_trans_dn = read_excel(covid_file_path, sheet=5)
+
+#medical use history data
+co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
+
+#medication for medical use history data
+co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
+
+
 
 #################
 ### FUNCTIONS ###
@@ -431,17 +449,7 @@ ClinicalCourse <- function(long_df = sinceAdmission) {
 #################################################################################
 # this code is extracted from the GitHub repo file extract.R
 
-#corona claim data
-co19_t200_trans_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx",
-                                sheet=2)
-#medication for claim data
-co19_t530_trans_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=5)
 
-#medical use history data
-co19_t200_twjhe_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
-
-#medication for medical use history data
-co19_t530_twjhe_dn = read_excel("./HIRA COVID-19 Sample Data_20200325.xlsx", sheet=9)
 #
 # ## ONLY FOR SAMPLE DATA: to have severe ICD codes in sample data
 # co19_t200_trans_dn[co19_t200_trans_dn$MAIN_SICK == "J029", "MAIN_SICK"] <- "J80"
