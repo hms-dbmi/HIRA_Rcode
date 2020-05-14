@@ -76,7 +76,7 @@ co19_t200_twjhe_dn[co19_t200_twjhe_dn$RECU_FR_DD %in% c(20190101, 20150404),'REC
 co19_t200_trans_dn[1, "FOM_TP_CD"] <- "021"
 co19_t200_twjhe_dn[1, "FOM_TP_CD"] <- "021"
 # Adding death
-co19_t200_trans_dn[c(4,6), "DGRSLT_TP_CD"] <- 4
+co19_t200_trans_dn[c(4,6), "DGRSLT_TP_CD"] <- "4"
 
 #SEX_TP_CD to sex
 sex_recoding <- c("male" = "1",
@@ -98,7 +98,7 @@ co19_t200_twjhe_dn[c("RECU_FR_DD", "RECU_TO_DD")] <-
   lapply(co19_t200_twjhe_dn[c("RECU_FR_DD", "RECU_TO_DD")], as_date)
 
 #### Person table creation
-df_death <- co19_t200_trans_dn[co19_t200_trans_dn$DGRSLT_TP_CD == 4,
+df_death <- co19_t200_trans_dn[co19_t200_trans_dn$DGRSLT_TP_CD == "4",
                                c("MID", "RECU_FR_DD", "PAT_AGE")] %>%
   rename(death_date = "RECU_FR_DD",
          age_death = "PAT_AGE") %>%
@@ -121,9 +121,10 @@ co19_t200_trans_dn["before_since"] <- "since"
 co19_t200_twjhe_dn["before_since"] <- "before"
 cols_t200 <- c("MID", "RECU_FR_DD", "RECU_TO_DD", "MAIN_SICK", "SUB_SICK", "before_since")
 long_t200 <- bind_rows(co19_t200_trans_dn[cols_t200], co19_t200_twjhe_dn[cols_t200]) %>%
-  pivot_longer(cols = c("MAIN_SICK", "SUB_SICK"),
-               values_to = "ICD",
-               names_to = "ICD_type") %>%
+  gather(value = "ICD",
+         key = "ICD_type",
+         MAIN_SICK,
+         SUB_SICK) %>%
   mutate(ICD_3D = substr(ICD, 1, 3),
          before_since = as.factor(before_since)) %>%
   drop_na(ICD_3D) %>%
@@ -144,7 +145,7 @@ long_t530_severe <- bind_rows(co19_t530_trans_dn[cols_t530], co19_t530_twjhe_dn[
 # SEVERITY
 pattern_drugs <- '^(J80)|(J95851)|(0BH17EZ)|(5A093)|(5A094)|(5A095)'
 pat_severe_icd <- long_t200[which(grepl(pattern_drugs, long_t200$ICD) &
-                              long_t200$before_since == "since"), "MID"] %>%
+                                    long_t200$before_since == "since"), "MID"] %>%
   unique() %>% unlist()
 pat_severe_drugs <- long_t530_severe[long_t530_severe$before_since == "since", "MID"] %>%
   unique() %>% unlist()
@@ -156,11 +157,10 @@ person_table["evere_severe"] <- if_else(person_table[["MID"]] %in% MID_severe, T
 #### Creating PheWAS data frame
 unique_icd_3d  <- unique(long_t200$ICD_3D)
 long_t200$present <- 1
-wide_t200 <- pivot_wider(long_t200,
-                         id_cols = c("MID", "RECU_FR_DD", "RECU_TO_DD", "before_since"),
-                         names_from = "ICD_3D",
-                         values_fill = list(present = 0),
-                         values_from = "present")
+wide_t200 <- spread(long_t200[c("MID", "RECU_FR_DD", "RECU_TO_DD", "before_since", "ICD_3D", "present")],
+                    key = "ICD_3D",
+                    fill = 0,
+                    value = "present")
 phewas_df <- left_join(person_table, wide_t200, by = "MID")
 
 
@@ -194,13 +194,13 @@ phewas_function <- function(phewas_df, unique_icd_3d) {
   names(list_results_phewas) <- unique_icd_3d
   for (icd_studied in unique_icd_3d) {
     list_results_phewas[[icd_studied]][["univariate"]] <- factory_glm_process(phewas_df,
-                                                                  icd_studied,
-                                                                  covariates = NULL,
-                                                                  response_var = "death")
+                                                                              icd_studied,
+                                                                              covariates = NULL,
+                                                                              response_var = "death")
     list_results_phewas[[icd_studied]][["multivariate"]] <- factory_glm_process(phewas_df,
-                                                                    icd_studied,
-                                                                    covariates = c("age", "sex"),
-                                                                    response_var = "death")
+                                                                                icd_studied,
+                                                                                covariates = c("age", "sex"),
+                                                                                response_var = "death")
   }
   return(list_results_phewas)
 }
@@ -271,3 +271,4 @@ save(output_phewas_whole,
      output_phewas_before_since,
      output_descriptive_stats,
      file = "output_pheWAS.RData")
+
