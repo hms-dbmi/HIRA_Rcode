@@ -1,5 +1,4 @@
 covid_file_path <- "./HIRA COVID-19 Sample Data_20200325.xlsx"
-sex_mapping_path <- "./SEX_TP_CD.xlsx"
 drug_mapping_path <- "./4CE_in_GNL_drug_overlap.tsv"
 
 ##########################
@@ -79,11 +78,11 @@ co19_t200_twjhe_dn[1, "FOM_TP_CD"] <- "021"
 # Adding death
 co19_t200_trans_dn[c(4,6), "DGRSLT_TP_CD"] <- 4
 
-######### READING EXTERNAL FILES
 #SEX_TP_CD to sex
-sex_tp_cd_map <- read_excel(sex_mapping_path, sheet=1)
-sex_recoding <- sex_tp_cd_map$SEX_TP_CD
-names(sex_recoding) <- sex_tp_cd_map$SEX
+sex_recoding <- c("male" = "1",
+                  "female" = "2",
+                  "other" = "9",
+                  "$" = "$")
 ## Drugs
 gnl_to_4ce = read.delim(drug_mapping_path, stringsAsFactors = F)[
   c("GNL_CD", "ATC_Code", "Type_for_4CE_Analysis", "Class_Name", "Med_Name_x")
