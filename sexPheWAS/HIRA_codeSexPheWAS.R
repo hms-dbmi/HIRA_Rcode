@@ -128,9 +128,11 @@ co19_t200_trans_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx"
 #medical use history data
 co19_t200_twjhe_dn = read_excel("./Data/HIRA COVID-19 Sample Data_20200325.xlsx", sheet=6)
 
-#SEX_TP_CD to sex
-sex_tp_cd_map = read_excel("./Korean_Codes/SEX_TP_CD.xlsx", sheet=1)
-
+###############################
+# Create a map table for SEX #
+##############################
+sex_tp_cd_map <- data.table( SEX_TP_CD = c(1,2,9,"$"), 
+            SEX = c("male", "female", "other", "$"))
 
 #####################
 # Corona Claim Data #
