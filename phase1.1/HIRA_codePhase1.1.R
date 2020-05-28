@@ -27,8 +27,6 @@ co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
 #medication for medical use history data
 co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
 
-###### Load korean data
-korean_test <- read_excel("/Users/Arnaud/git_repos/HIRA_Rcode/Korean_Codes/HIRA COVID-19 Data Schema.xlsx", sheet=1)
 
 #################
 ### FUNCTIONS ###
@@ -81,11 +79,15 @@ createDataSet <- function( since = co19_t200_trans_dn,
   # Adding alignment date + unique patient personal information (Age)
   dataAnalysis <- merge(dataAnalysis, first_visit_PATIENTID, by = "MID")
 
-  #SEX_TP_CD to sex
-  sex_tp_cd_map = read_excel("./SEX_TP_CD.xlsx", sheet=1)
-
   #Map the number for SEX_TP_CD to meaningful text
-  dataAnalysis = merge(dataAnalysis, sex_tp_cd_map, by="SEX_TP_CD", all.x=T)
+  #SEX_TP_CD to sex
+  sex_recoding <- c("male" = "1",
+                    "female" = "2",
+                    "other" = "9",
+                    "$" = "$")
+  dataAnalysis[["SEX"]] <- factor(dataAnalysis[["SEX_TP_CD"]],
+                                  levels=sex_recoding,
+                                  labels=names(sex_recoding))
 
   #Map death info for DGRSLT_TP_CD to meaningful
   dataAnalysis$DEATH <- ifelse( dataAnalysis$DGRSLT_TP_CD==4, "yes", "no")
