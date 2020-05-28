@@ -15,6 +15,23 @@ library(lubridate)
 ##########################
 # Utils #
 ##########################
+as_date_assert <- function(date_vector) {
+   if (class(date_vector) == "Date") {
+      output <- rep(TRUE, length(date_vector))
+   } else {
+      is_not_null <- !is.na(as.numeric(as.character(date_vector)))
+      is_8_chars <- nchar(date_vector) == 8
+      output <- is_not_null & is_8_chars
+   }
+   return(output)
+}
+
+# Apply as_date_assert on columns and reduce result by rows
+rows_are_dates <- function(df) {
+   test <- lapply(df, as_date_assert) %>% as.data.frame()
+   apply(test, 1, all)
+}
+
 
 factory <- function(fun){
   function(...) {
@@ -74,8 +91,13 @@ gnl_to_4ce = read.delim(drug_mapping_path, stringsAsFactors = F)[
 SEVERE_ICD <- c("J80", "J95851", "0BH17EZ", "5A093", "5A094", "5A095")
 SEVERE_DRUGS <- gnl_to_4ce[gnl_to_4ce$Type_for_4CE_Analysis == "Severe Illness Medication", "GNL_CD"]
 
+filter_dates <- rows_are_dates(co19_t200_trans_dn[c("RECU_FR_DD", "RECU_TO_DD")])
+co19_t200_trans_dn <- co19_t200_trans_dn[filter_dates, ]
 co19_t200_trans_dn[c("RECU_FR_DD", "RECU_TO_DD")] <-
   lapply(co19_t200_trans_dn[c("RECU_FR_DD", "RECU_TO_DD")], as_date)
+
+filter_dates <- rows_are_dates(co19_t200_twjhe_dn[c("RECU_FR_DD", "RECU_TO_DD")])
+co19_t200_twjhe_dn <- co19_t200_twjhe_dn[filter_dates, ]
 co19_t200_twjhe_dn[c("RECU_FR_DD", "RECU_TO_DD")] <-
   lapply(co19_t200_twjhe_dn[c("RECU_FR_DD", "RECU_TO_DD")], as_date)
 
@@ -118,11 +140,7 @@ co19_t530_trans_dn[["before_since"]] <- "since"
 co19_t530_twjhe_dn[["before_since"]] <- "before"
 long_t530_severe <- bind_rows(co19_t530_trans_dn[cols_t530], co19_t530_twjhe_dn[cols_t530]) %>%
   subset(GNL_CD %in% SEVERE_DRUGS) %>%
-  mutate(prescription_date = as_date(substr(PRSCP_GRANT_NO, 1, 8)),
-         prescription_occurence = as.integer(substr(PRSCP_GRANT_NO, 9, 13)),
-         before_since = as.factor(before_since))
-
-
+  mutate(before_since = as.factor(before_since))
 
 # SEVERITY
 pattern_drugs <- '^(J80)|(J95851)|(0BH17EZ)|(5A093)|(5A094)|(5A095)'

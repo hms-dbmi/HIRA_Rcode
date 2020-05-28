@@ -9,7 +9,6 @@ if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))
 }
 library(readxl)
-library(plyr)
 library(dplyr)
 library(tidyverse)
 library(tidyr)
@@ -18,8 +17,7 @@ library(data.table)
 
 
 #corona claim data
-co19_t200_trans_dn = read_excel(covid_file_path,
-                                sheet=2)
+co19_t200_trans_dn = read_excel(covid_file_path, sheet=2)
 #medication for claim data
 co19_t530_trans_dn = read_excel(covid_file_path, sheet=5)
 
@@ -29,11 +27,31 @@ co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
 #medication for medical use history data
 co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
 
-
+###### Load korean data
+korean_test <- read_excel("/Users/Arnaud/git_repos/HIRA_Rcode/Korean_Codes/HIRA COVID-19 Data Schema.xlsx", sheet=1)
 
 #################
 ### FUNCTIONS ###
 #################
+
+# Return boolean vector asserting whether elements are convertible to dates. Used to remove rows with bad date format
+as_date_assert <- function(date_vector) {
+   if (class(date_vector) == "Date") {
+      output <- rep(TRUE, length(date_vector))
+   } else {
+      is_not_null <- !is.na(as.numeric(as.character(date_vector)))
+      is_8_chars <- nchar(date_vector) == 8
+      output <- is_not_null & is_8_chars
+   }
+   return(output)
+}
+
+# Apply as_date_assert on columns and reduce result by rows
+rows_are_dates <- function(df) {
+   test <- lapply(df, as_date_assert) %>% as.data.frame()
+   apply(test, 1, all)
+}
+
 
 ##### when creating the data set we have to consider that the same patient can have multiple admissions
 ##### and that the same patient can be administered multiple drugs
@@ -50,7 +68,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
   first_visit_PATIENTID <- since[ c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
     group_by(MID) %>%
     slice(which.min(RECU_FR_DD)) %>%
-    rename(ALIGNMENT_DATE = RECU_FR_DD)
+    rename(ALIGNMENT_DATE = "RECU_FR_DD")
 
   #variables of interest
   col_t200 <- c( "MID", "MAIN_SICK", "SUB_SICK",
@@ -85,6 +103,9 @@ createDataSet <- function( since = co19_t200_trans_dn,
                                        ALIGNMENT_DATE = dataAnalysis$ALIGNMENT_DATE,
                                        stringsAsFactors = F
   )
+
+  filter_dates <- rows_are_dates(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")])
+  dataAnalysisSelection <- dataAnalysisSelection[filter_dates, ]
   dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")] <-
     lapply(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")], as_date)
 
