@@ -157,7 +157,7 @@ dataAnalysisSelection$DIAGNOSTIC_3D <- substr(dataAnalysisSelection$DIAGNOSTIC_C
 
 #### Demographics by sex summary
 agebreaks <- c(0,3,6,12,18,26,50,70,80,150)
-agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80+")
+agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80-150")
 
 setDT(dataAnalysisSelection)[, AGE_RANGE := cut(AGE,
                                breaks = agebreaks, 
@@ -197,15 +197,15 @@ save(diagnosticBySexCounts, file="./Results/diagnosticBySexCountsCoronaClaim.RDa
 
 
 ##### Sex PheWAS 
-sexPheWAS_0to100 <- myPhewasAnalysis(data    = dataAnalysisSelection, 
+sexPheWAS_0to150 <- myPhewasAnalysis(data    = dataAnalysisSelection, 
                        ageMin  = 0,
-                       ageMax  = 100,
+                       ageMax  = 150,
                        caco    = "SEX",
                        cases   = "female",
                        control = "male",
                        correctionMethod = "bonferroni" )
 
-save(sexPheWAS_0to100, file="./Results/sexPheWAS_0to100_CoronaClaim.RData")
+save(sexPheWAS_0to150, file="./Results/sexPheWAS_0to150_CoronaClaim.RData")
 
 #Sex PheWAS by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -240,15 +240,15 @@ for( i in 1:length(ageRanges)){
 }
 
 #### Sex Fisher
-fisher_0to100 <- fisherAnalysis( data = dataAnalysisSelection, 
+fisher_0to150 <- fisherAnalysis( data = dataAnalysisSelection, 
                    ageMin = 0, 
-                   ageMax = 100, 
+                   ageMax = 150, 
                    caco = "SEX",
                    cases = "female",
                    control = "male",
                    correctionMethod = "bonferroni")
 
-save(fisher_0to100, file="./Results/fisher_0to100_CoronaClaim.RData")
+save(fisher_0to150, file="./Results/fisher_0to150_CoronaClaim.RData")
 
 #Sex Fisher by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -299,7 +299,7 @@ dataAnalysisSelection$DIAGNOSTIC_3D <- substr(dataAnalysisSelection$DIAGNOSTIC_C
 
 #### Demographics by sex summary
 agebreaks <- c(0,3,6,12,18,26,50,70,80,150)
-agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80+")
+agelabels <- c("0-2","3-5","6-11","12-17","18-25","26-49","50-69","70-79","80-150")
 
 setDT(dataAnalysisSelection)[, AGE_RANGE := cut(AGE,
                                                 breaks = agebreaks, 
@@ -337,15 +337,15 @@ save(diagnosticBySexCounts, file="./Results/diagnosticBySexCounts_MedicalHistory
 
 
 ##### Sex PheWAS 
-sexPheWAS_0to100 <- myPhewasAnalysis(data    = dataAnalysisSelection, 
+sexPheWAS_0to150 <- myPhewasAnalysis(data    = dataAnalysisSelection, 
                                      ageMin  = 0,
-                                     ageMax  = 100,
+                                     ageMax  = 150,
                                      caco    = "SEX",
                                      cases   = "female",
                                      control = "male",
                                      correctionMethod = "bonferroni" )
 
-save(sexPheWAS_0to100, file="./Results/sexPheWAS_0to100_MedicalHistory.RData")
+save(sexPheWAS_0to150, file="./Results/sexPheWAS_0to150_MedicalHistory.RData")
 
 #Sex PheWAS by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
@@ -381,15 +381,15 @@ for( i in 1:length(ageRanges)){
 
 
 #### Sex Fisher
-fisher_0to100 <- fisherAnalysis( data = dataAnalysisSelection, 
+fisher_0to150 <- fisherAnalysis( data = dataAnalysisSelection, 
                                  ageMin = 0, 
-                                 ageMax = 100, 
+                                 ageMax = 150, 
                                  caco = "SEX",
                                  cases = "female",
                                  control = "male",
                                  correctionMethod = "bonferroni")
 
-save(fisher_0to100, file="./Results/fisher_0to100_MedicalHistory.RData")
+save(fisher_0to150, file="./Results/fisher_0to150_MedicalHistory.RData")
 
 #Sex Fisher by age range
 ageRanges <- unique(dataAnalysisSelection$AGE_RANGE)
