@@ -18,15 +18,19 @@ library(data.table)
 
 #corona claim data
 co19_t200_trans_dn = read_excel(covid_file_path, sheet=2)
+co19_t200_trans_dn = as.data.frame( co19_t200_trans_dn )
+
 #medication for claim data
 co19_t530_trans_dn = read_excel(covid_file_path, sheet=5)
+co19_t530_trans_dn = as.data.frame( co19_t530_trans_dn )
 
 #medical use history data
 co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
+co19_t200_twjhe_dn = as.data.frame( co19_t200_twjhe_dn )
 
 #medication for medical use history data
 co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
-
+co19_t530_twjhe_dn = as.data.frame( co19_t530_twjhe_dn )
 
 #################
 ### FUNCTIONS ###
@@ -63,7 +67,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
                            days_before = 365){
 
   # Creating alignment date
-  first_visit_PATIENTID <- since[ c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
+  first_visit_PATIENTID <- since[, c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
     group_by(MID) %>%
     slice(which.min(RECU_FR_DD)) %>%
     rename(ALIGNMENT_DATE = "RECU_FR_DD")
@@ -106,10 +110,10 @@ createDataSet <- function( since = co19_t200_trans_dn,
                                        stringsAsFactors = F
   )
 
-  filter_dates <- rows_are_dates(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")])
+  filter_dates <- rows_are_dates(dataAnalysisSelection[, c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")])
   dataAnalysisSelection <- dataAnalysisSelection[filter_dates, ]
-  dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")] <-
-    lapply(dataAnalysisSelection[c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")], as_date)
+  dataAnalysisSelection[, c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")] <-
+    lapply(dataAnalysisSelection[, c("CARE_RELEASE_DATE", "CARE_ENDS", "ALIGNMENT_DATE")], as_date)
 
   #Create a new column with the diagnostic code at 3 digits level
   dataAnalysisSelection$DIAGNOSTIC_3D <- substr(dataAnalysisSelection$DIAGNOSTIC_CODE, 1, 3)
@@ -506,6 +510,8 @@ DataSet <- createDataSet( since              = co19_t200_trans_dn,
                           medication_since   = co19_t530_trans_dn,
                           medication_before  = co19_t530_twjhe_dn,
                           hospitalize = T)
+
+DataSet <- as.data.frame( DataSet )
 sinceAdmission <- DataSet[DataSet$BEFORE_SINCE == "since",]
 beforeAdmission <- DataSet[DataSet$BEFORE_SINCE == "before",]
 
@@ -531,6 +537,7 @@ save( df_clinical_course, file="./Results/df_clinical_course.RData")
 #########################
 ## DEMOGRAPHIC COUNTS ##
 ########################
+library(plyr)
 demogSinceAdmissionBySex <- demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = FALSE, severe = TRUE )
 demogSinceAdmissionByAge <- demographicsFile( input = sinceAdmission, by.sex = FALSE, by.age = TRUE, severe = TRUE )
 demogSinceAdmissionBySexAndAge <- demographicsFile( input = sinceAdmission, by.sex = TRUE, by.age = TRUE, severe = TRUE )
