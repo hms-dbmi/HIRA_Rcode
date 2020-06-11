@@ -76,6 +76,9 @@ co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
 #medication for medical use history data
 co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
 
+if (exists("EXAMPLE_CONFIG")) {
+  source("mock_data.R")
+}
 
 #SEX_TP_CD to sex
 sex_recoding <- c("male" = "1",
@@ -90,6 +93,13 @@ gnl_to_4ce = read.delim(drug_mapping_path, stringsAsFactors = F)[
 ##### ENV VARIABLES
 SEVERE_ICD <- c("J80", "J95851", "0BH17EZ", "5A093", "5A094", "5A095")
 SEVERE_DRUGS <- gnl_to_4ce[gnl_to_4ce$Type_for_4CE_Analysis == "Severe Illness Medication", "GNL_CD"]
+
+## Ensuring tibble
+co19_t200_trans_dn = as_tibble(co19_t200_trans_dn)
+co19_t530_trans_dn = as_tibble(co19_t530_trans_dn)
+co19_t200_twjhe_dn = as_tibble(co19_t200_twjhe_dn)
+co19_t530_twjhe_dn = as_tibble(co19_t530_twjhe_dn)
+gnl_to_4ce = as_tibble(gnl_to_4ce)
 
 filter_dates <- rows_are_dates(co19_t200_trans_dn[c("RECU_FR_DD", "RECU_TO_DD")])
 co19_t200_trans_dn <- co19_t200_trans_dn[filter_dates, ]
@@ -108,7 +118,7 @@ df_death <- co19_t200_trans_dn[co19_t200_trans_dn$DGRSLT_TP_CD == "4",
          age_death = "PAT_AGE") %>%
   mutate(death=1)
 
-person_table <- co19_t200_trans_dn[c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
+person_table <- co19_t200_trans_dn[, c("MID", "RECU_FR_DD", "PAT_AGE", "SEX_TP_CD")] %>%
   group_by(MID) %>%
   slice(which.min(RECU_FR_DD)) %>%
   rename(alignment_date = RECU_FR_DD,
