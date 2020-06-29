@@ -134,9 +134,11 @@ co19_t200_twjhe_dn = read_excel("./Data/HIRA_sampleDataUpdated.xlsx", sheet=8)
 ###############################
 # Create a map table for SEX #
 ##############################
-sex_tp_cd_map <- data.table( SEX_TP_CD = c(1,2,9,"$"), 
-            SEX = c("male", "female", "other", "$"))
+#sex_tp_cd_map <- data.table( SEX_TP_CD = c("1","2","9","$"), 
+#            SEX = c("male", "female", "other", "$"))
 
+sex_tp_cd_map <- data.frame( "SEX_TP_CD" = c("1", "2", "9", "$"), 
+                  "SEX" = c("male", "female", "other", "$"))
 #####################
 # Corona Claim Data #
 #####################
@@ -176,8 +178,9 @@ dataAnalysisSelection <- unique( dataAnalysisSelection )
 demographicsBySex <- dataAnalysisSelection[, c("PATIENT_ID", "AGE_RANGE", "SEX")]
 demographicsBySex <- unique( demographicsBySex )
 
+library(plyr)
 demographicsBySexCounts <- rbind(plyr::ddply(demographicsBySex,
-                                       .(AGE_RANGE,SEX),
+                                       plyr::.(AGE_RANGE,SEX),
                                        summarise,COUNT = length(SEX)))
 
 demographicsBySexCounts
@@ -195,7 +198,7 @@ diagnosticBySex <- dataAnalysisSelection[, c("PATIENT_ID", "DIAGNOSTIC_3D", "SEX
 diagnosticBySex <- unique( diagnosticBySex )
 
 diagnosticBySexCounts <- rbind(plyr::ddply(diagnosticBySex,
-                                             .(DIAGNOSTIC_3D,SEX),
+                                             plyr::.(DIAGNOSTIC_3D,SEX),
                                              summarise,COUNT = length(DIAGNOSTIC_3D)))
 
 diagnosticBySexCounts
@@ -323,7 +326,7 @@ demographicsBySex <- dataAnalysisSelection[, c("PATIENT_ID", "AGE_RANGE", "SEX")
 demographicsBySex <- unique( demographicsBySex )
 
 demographicsBySexCounts <- rbind(plyr::ddply(demographicsBySex,
-                                             .(AGE_RANGE,SEX),
+                                             plyr::.(AGE_RANGE,SEX),
                                              summarise,COUNT = length(SEX)))
 
 demographicsBySexCounts
@@ -338,7 +341,7 @@ diagnosticBySex <- dataAnalysisSelection[, c("PATIENT_ID", "DIAGNOSTIC_3D", "SEX
 diagnosticBySex <- unique( diagnosticBySex )
 
 diagnosticBySexCounts <- rbind(plyr::ddply(diagnosticBySex,
-                                           .(DIAGNOSTIC_3D,SEX),
+                                           plyr::.(DIAGNOSTIC_3D,SEX),
                                            summarise,COUNT = length(DIAGNOSTIC_3D)))
 
 diagnosticBySexCounts
