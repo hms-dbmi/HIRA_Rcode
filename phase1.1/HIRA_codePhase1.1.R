@@ -1,5 +1,5 @@
 ##### COVID DATA
-covid_file_path <- "./HIRA COVID-19 Sample Data_20200325.xlsx"
+covid_file_path <- "./HIRA_sampleDataUpdated.xlsx"
 
 ##########################
 # Libraries installation #
@@ -17,19 +17,23 @@ library(data.table)
 
 
 #corona claim data
-co19_t200_trans_dn = read_excel(covid_file_path, sheet=2)
+co19_t200_trans_dn = read_excel(covid_file_path, sheet=4)
 co19_t200_trans_dn = as.data.frame( co19_t200_trans_dn )
+#Select confirmed cases only
+co19_t200_trans_dn <- co19_t200_trans_dn[ !is.na(co19_t200_trans_dn$CONFIRM), ]
 
 #medication for claim data
-co19_t530_trans_dn = read_excel(covid_file_path, sheet=5)
+co19_t530_trans_dn = read_excel(covid_file_path, sheet=7)
 co19_t530_trans_dn = as.data.frame( co19_t530_trans_dn )
 
 #medical use history data
-co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=6)
+co19_t200_twjhe_dn = read_excel(covid_file_path, sheet=8)
 co19_t200_twjhe_dn = as.data.frame( co19_t200_twjhe_dn )
+#Select confirmed cases only
+co19_t200_twjhe_dn <- co19_t200_twjhe_dn[ !is.na(co19_t200_twjhe_dn$CONFIRM), ]
 
 #medication for medical use history data
-co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=9)
+co19_t530_twjhe_dn = read_excel(covid_file_path, sheet=11)
 co19_t530_twjhe_dn = as.data.frame( co19_t530_twjhe_dn )
 
 #################
@@ -71,14 +75,15 @@ createDataSet <- function( since = co19_t200_trans_dn,
     group_by(MID) %>%
     slice(which.min(RECU_FR_DD)) %>%
     rename(ALIGNMENT_DATE = "RECU_FR_DD")
+  first_visit_PATIENTID <- as.data.frame( first_visit_PATIENTID )
 
   #variables of interest
   col_t200 <- c( "MID", "MAIN_SICK", "SUB_SICK",
-                 "FOM_TP_CD", "RECU_FR_DD", "RECU_TO_DD","DGRSLT_TP_CD",
+                 "FOM_TP_CD", "RECU_FR_DD", "RECU_TO_DD","DEATH",
                  "BEFORE_SINCE")
   since[["BEFORE_SINCE"]] <- "since"
   before[["BEFORE_SINCE"]] <- "before"
-  dataAnalysis <- dplyr::bind_rows(since[col_t200], before[col_t200])
+  dataAnalysis <- dplyr::bind_rows(since[,col_t200], before[,col_t200])
 
   # Adding alignment date + unique patient personal information (Age)
   dataAnalysis <- merge(dataAnalysis, first_visit_PATIENTID, by = "MID")
@@ -94,7 +99,11 @@ createDataSet <- function( since = co19_t200_trans_dn,
                                   labels=names(sex_recoding))
 
   #Map death info for DGRSLT_TP_CD to meaningful
-  dataAnalysis$DEATH <- ifelse( dataAnalysis$DGRSLT_TP_CD==4, "yes", "no")
+  #dataAnalysis$DEATH <- ifelse( dataAnalysis$DGRSLT_TP_CD==4, "yes", "no")
+  
+  #Use DEATH column instead
+  dataAnalysis$DEATH <- ifelse( is.na(dataAnalysis$DEATH), "no", "yes")
+  
 
   #Create a data.frame with meaningful column names and joining main and sub sick under the same column
   dataAnalysisSelection <- data.frame( PATIENT_ID  = dataAnalysis$MID,
@@ -129,7 +138,7 @@ createDataSet <- function( since = co19_t200_trans_dn,
   }
 
   col_medications <- c("MID", "GNL_CD", "PRSCP_GRANT_NO")
-  medication <- dplyr::bind_rows(medication_since[col_medications], medication_since[col_medications])
+  medication <- dplyr::bind_rows(medication_since[,col_medications], medication_since[,col_medications])
   #Create a data.frame with the medication data and select only hospitalize patients
   dataAnalysisMedication =  data.frame( PATIENT_ID  = medication$MID,
                                         MEDICATION  = medication$GNL_CD,
