@@ -15,6 +15,10 @@ library(tidyr)
 library( lubridate )
 library(data.table)
 
+# sample file downloaded from https://hira-covid19.net/view_community?community_id=1590556559709
+# this sample file is the one that contains the new columns, CONFIRM and DEATH
+# for testing purposes I changed the original file name 코로나19 국제협력 연구_데이터 스키마 및 샘플 데이터
+# to "HIRA_sampleDataUpdated" 
 
 #corona claim data
 co19_t200_trans_dn = read_excel(covid_file_path, sheet=4)
@@ -478,7 +482,7 @@ ClinicalCourse <- function(long_df = sinceAdmission) {
   return(df_relative_count)
 }
 
-#sink("mylogs.txt")
+sink("mylogs.txt")
 
 #################################################################################
 # Read the files from the GitHub Repo https://github.com/gp2u/opendata4covid19/ #
