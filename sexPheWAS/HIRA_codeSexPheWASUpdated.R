@@ -1,3 +1,4 @@
+rm
 ##########################
 # Libraries installation #
 ##########################
@@ -57,17 +58,24 @@ myPhewasAnalysis <- function( data, ageMin, ageMax, caco, cases, control, correc
     selection <- glm( formula= phenotypedf[, as.character(phenotypes[i])]~casecontrol, family = binomial(), data=phenotypedf, na.action = na.omit)
     ci   <- exp(summary(selection)$coefficients["casecontrol1",1]+qnorm(c(0.025, 0.975)) * summary(selection)$coefficients["casecontrol1",2])
     
-    cacodf <-  phenotypedf[, c(as.character(phenotypes[i]), "PATIENT_ID", "casecontrol")]
-    cacodf <- na.omit( cacodf )
-    caseDisease <- length(unique(cacodf[ cacodf[, 1] == 1 & cacodf$casecontrol == "1", "PATIENT_ID"]))
-    caseNoDisease <-  length(unique(cacodf[ cacodf[, 1] == 0 & cacodf$casecontrol == "1", "PATIENT_ID"]))
-    controlDisease <-  length(unique(cacodf[ cacodf[, 1] == 1 & cacodf$casecontrol == "0", "PATIENT_ID"]))
-    controlNoDisease <-  length(unique(cacodf[ cacodf[, 1] == 0 & cacodf$casecontrol == "0", "PATIENT_ID"]))
-    newRow <- c ( as.character(phenotypes[i]), summary(selection)$coefficients[2], exp(summary(selection)$coefficients[2]), paste0("(", ci[1][1], ",", ci[2][1], ")"),
-                  summary(selection)$coefficients[2,4], paste0(caseDisease+controlDisease,"(",caseDisease,"/",controlDisease,")"), 
-                  paste0(caseNoDisease+controlNoDisease,"(",caseNoDisease,"/",controlNoDisease,")")
-    )
-    phewasOutput <- rbind( newRow, phewasOutput )
+    colnums <- which( colnames( phenotypedf) %in% c(as.character(phenotypes[i]), "PATIENT_ID", "casecontrol"))
+    if( length( colnums ) == 3 ){
+      cacodf <-  phenotypedf[, c( colnums )]
+      cacodf <- na.omit( cacodf )
+      caseDisease <- length(unique(cacodf[ cacodf[, 1] == 1 & cacodf$casecontrol == "1", "PATIENT_ID"]))
+      caseNoDisease <-  length(unique(cacodf[ cacodf[, 1] == 0 & cacodf$casecontrol == "1", "PATIENT_ID"]))
+      controlDisease <-  length(unique(cacodf[ cacodf[, 1] == 1 & cacodf$casecontrol == "0", "PATIENT_ID"]))
+      controlNoDisease <-  length(unique(cacodf[ cacodf[, 1] == 0 & cacodf$casecontrol == "0", "PATIENT_ID"]))
+      newRow <- c ( as.character(phenotypes[i]), summary(selection)$coefficients[2], exp(summary(selection)$coefficients[2]), paste0("(", ci[1][1], ",", ci[2][1], ")"),
+                    summary(selection)$coefficients[2,4], paste0(caseDisease+controlDisease,"(",caseDisease,"/",controlDisease,")"), 
+                    paste0(caseNoDisease+controlNoDisease,"(",caseNoDisease,"/",controlNoDisease,")")
+      )
+      phewasOutput <- rbind( newRow, phewasOutput )
+    }else{
+      selectingVariables <- c(as.character(phenotypes[i]), "PATIENT_ID", "casecontrol")
+      missing <- which(! selectingVariables %in% colnames(phenotypedf ))
+      print( paste0("Variable ", selectingVariables[missing], " is missing"))
+    }
   }
   
   colnames( phewasOutput ) <- c("DIAGNOSTIC", "Coefficient", "OddsRatio", "Confidence_interval", "pvalue", "Phenotype_present", "Phenotype_absent")
