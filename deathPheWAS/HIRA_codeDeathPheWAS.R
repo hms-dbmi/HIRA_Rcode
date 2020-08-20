@@ -167,7 +167,7 @@ person_table["evere_severe"] <- if_else(person_table[["MID"]] %in% MID_severe, T
 #### Creating PheWAS data frame
 unique_icd_3d  <- unique(long_t200$ICD_3D)
 long_t200$present <- 1
-wide_t200 <- spread(long_t200[c("MID", "RECU_FR_DD", "RECU_TO_DD", "before_since", "ICD_3D", "present")],
+wide_t200 <- spread(long_t200[,c("MID", "RECU_FR_DD", "RECU_TO_DD", "before_since", "ICD_3D", "present")],
                     key = "ICD_3D",
                     fill = 0,
                     value = "present")
