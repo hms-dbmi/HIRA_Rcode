@@ -1,4 +1,3 @@
-rm
 ##########################
 # Libraries installation #
 ##########################
@@ -55,7 +54,8 @@ myPhewasAnalysis <- function( data, ageMin, ageMax, caco, cases, control, correc
       print( paste0( "Diagnostic code ", i, " out of ", length( phenotypes )))
     }
     
-    selection <- glm( formula= phenotypedf[, as.character(phenotypes[i])]~casecontrol, family = binomial(), data=phenotypedf, na.action = na.omit)
+    colnum <- which( colnames(phenotypedf) == as.character(phenotypes[i]))
+    selection <- glm( formula= phenotypedf[,colnum]~casecontrol, family = binomial(), data=phenotypedf, na.action = na.omit)
     ci   <- exp(summary(selection)$coefficients["casecontrol1",1]+qnorm(c(0.025, 0.975)) * summary(selection)$coefficients["casecontrol1",2])
     
     colnums <- which( colnames( phenotypedf) %in% c(as.character(phenotypes[i]), "PATIENT_ID", "casecontrol"))
